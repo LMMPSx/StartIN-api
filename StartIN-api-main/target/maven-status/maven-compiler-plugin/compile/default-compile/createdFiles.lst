@@ -38,6 +38,7 @@ com\startin\api\model\enums\MatchStatus.class
 com\startin\api\dto\auth\AuthResponseDTO.class
 com\startin\api\dto\opportunity\CreateOpportunityDTO.class
 com\startin\api\repository\UserRepository.class
+com\startin\api\service\MatchService$1.class
 com\startin\api\controller\StartupProfileController.class
 com\startin\api\dto\auth\PasswordResetRequestDTO.class
 com\startin\api\dto\opportunity\OpportunityDTO.class

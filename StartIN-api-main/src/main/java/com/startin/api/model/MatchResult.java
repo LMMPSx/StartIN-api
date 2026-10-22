@@ -12,34 +12,34 @@ public class MatchResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "startup_id", nullable = false)
     private StartupProfile startupProfile;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "opportunity_id", nullable = false)
     private Opportunity opportunity;
 
     @Column(nullable = false)
     private Integer matchScore;
 
-    @Column(length = 3000)
+    @Column(columnDefinition = "TEXT")
     private String justification;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String recommendedAction;
 
     // Quatro pilares exibidos na UI (Página 9 e tela de detalhe)
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String reasonProfile;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String reasonRequirements;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String reasonObjective;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String reasonContext;
 
     @Enumerated(EnumType.STRING)

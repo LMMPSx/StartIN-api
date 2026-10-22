@@ -4,6 +4,10 @@ public class AiMatchItemDTO {
 
     private String opportunityId;
     private String opportunityTitle;
+    private String opportunityType;
+    private String opportunityDescription;
+    private String opportunityMeta;
+    private String opportunityTags;
     private String url;
     private Integer matchScore;
     private String justification;
@@ -17,6 +21,14 @@ public class AiMatchItemDTO {
     public void setOpportunityId(String opportunityId) { this.opportunityId = opportunityId; }
     public String getOpportunityTitle() { return opportunityTitle; }
     public void setOpportunityTitle(String opportunityTitle) { this.opportunityTitle = opportunityTitle; }
+    public String getOpportunityType() { return opportunityType; }
+    public void setOpportunityType(String opportunityType) { this.opportunityType = opportunityType; }
+    public String getOpportunityDescription() { return opportunityDescription; }
+    public void setOpportunityDescription(String opportunityDescription) { this.opportunityDescription = opportunityDescription; }
+    public String getOpportunityMeta() { return opportunityMeta; }
+    public void setOpportunityMeta(String opportunityMeta) { this.opportunityMeta = opportunityMeta; }
+    public String getOpportunityTags() { return opportunityTags; }
+    public void setOpportunityTags(String opportunityTags) { this.opportunityTags = opportunityTags; }
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
     public Integer getMatchScore() { return matchScore; }

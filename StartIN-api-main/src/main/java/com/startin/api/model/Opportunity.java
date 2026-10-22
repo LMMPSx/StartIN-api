@@ -24,7 +24,7 @@ public class Opportunity {
 
     private String shortDescription;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     private Integer matchScore = 85;
@@ -38,7 +38,7 @@ public class Opportunity {
     @Column(nullable = false)
     private OpportunityStatus status = OpportunityStatus.PUBLICADA;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "company_id")
     private Company company;
 

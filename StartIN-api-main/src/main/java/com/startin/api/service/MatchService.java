@@ -4,10 +4,14 @@ import com.startin.api.dto.ai.AiMatchItemDTO;
 import com.startin.api.dto.ai.AiMatchResponseDTO;
 import com.startin.api.dto.match.MatchResultDTO;
 import com.startin.api.model.MatchResult;
+import com.startin.api.model.Notification;
 import com.startin.api.model.Opportunity;
 import com.startin.api.model.StartupProfile;
 import com.startin.api.model.enums.MatchStatus;
+import com.startin.api.model.enums.OpportunityStatus;
+import com.startin.api.model.enums.OpportunityType;
 import com.startin.api.repository.MatchResultRepository;
+import com.startin.api.repository.NotificationRepository;
 import com.startin.api.repository.OpportunityRepository;
 import com.startin.api.repository.StartupProfileRepository;
 import org.slf4j.Logger;
@@ -27,22 +31,38 @@ public class MatchService {
     private final MatchResultRepository matchResultRepository;
     private final StartupProfileRepository startupProfileRepository;
     private final OpportunityRepository opportunityRepository;
+    private final NotificationRepository notificationRepository;
     private final AiIntegrationService aiIntegrationService;
 
     public MatchService(
             MatchResultRepository matchResultRepository,
             StartupProfileRepository startupProfileRepository,
             OpportunityRepository opportunityRepository,
+            NotificationRepository notificationRepository,
             AiIntegrationService aiIntegrationService) {
         this.matchResultRepository = matchResultRepository;
         this.startupProfileRepository = startupProfileRepository;
         this.opportunityRepository = opportunityRepository;
+        this.notificationRepository = notificationRepository;
         this.aiIntegrationService = aiIntegrationService;
     }
 
+    @Transactional
     public List<MatchResultDTO> getMatchesForStartup(Long startupId) {
-        return matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(startupId)
-                .stream()
+        StartupProfile profile = resolveStartupProfile(startupId);
+        if (profile == null) {
+            return List.of();
+        }
+
+        List<MatchResult> existing = matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(profile.getId());
+        boolean hasWebScraped = opportunityRepository.findAll().stream()
+                .anyMatch(o -> o.getCode() != null && o.getCode().startsWith("web-"));
+
+        if (existing.isEmpty() || !hasWebScraped) {
+            return recalculateMatches(profile.getId(), true);
+        }
+
+        return existing.stream()
                 .map(MatchResultDTO::fromEntity)
                 .toList();
     }
@@ -53,13 +73,15 @@ public class MatchService {
 
     @Transactional
     public List<MatchResultDTO> recalculateMatches(Long startupId, boolean scrapeLiveWeb) {
-        StartupProfile profile = startupProfileRepository.findById(startupId)
-                .orElseThrow(() -> new IllegalArgumentException("Startup não encontrada: " + startupId));
+        StartupProfile profile = resolveStartupProfile(startupId);
+        if (profile == null) {
+            throw new IllegalArgumentException("Nenhum perfil de startup cadastrado para calcular matches.");
+        }
 
-        List<Opportunity> opportunities = opportunityRepository.findAll();
-        log.info("Iniciando cálculo de matches para startup '{}' com {} oportunidades disponíveis", profile.getName(), opportunities.size());
+        List<Opportunity> opportunities = new ArrayList<>(opportunityRepository.findAll());
+        log.info("Iniciando cálculo de matches via IA Python (scrapeLiveWeb={}) para startup '{}' (ID {}) com {} oportunidades no MySQL",
+                scrapeLiveWeb, profile.getName(), profile.getId(), opportunities.size());
 
-        // Integração direta com o microserviço de IA em Python
         AiMatchResponseDTO aiResponse = aiIntegrationService.calculateMatches(profile, opportunities, scrapeLiveWeb);
 
         List<MatchResult> savedResults = new ArrayList<>();
@@ -77,18 +99,53 @@ public class MatchService {
 
             if (matchedOpp == null && item.getOpportunityTitle() != null) {
                 matchedOpp = opportunities.stream()
-                        .filter(o -> o.getTitle().equalsIgnoreCase(item.getOpportunityTitle()) ||
-                                     o.getTitle().contains(item.getOpportunityTitle()))
+                        .filter(o -> o.getTitle().equalsIgnoreCase(item.getOpportunityTitle().trim()))
                         .findFirst()
                         .orElse(null);
             }
 
+            // Se a IA em Python trouxe uma nova oportunidade real raspada da Web que ainda não está no MySQL, salva no banco!
+            if (matchedOpp == null && item.getOpportunityTitle() != null && !item.getOpportunityTitle().isBlank()) {
+                Opportunity newWebOpp = new Opportunity();
+                OpportunityType oppType = OpportunityType.fromString(
+                        item.getOpportunityType() != null ? item.getOpportunityType() : "EDITAL"
+                );
+                newWebOpp.setType(oppType);
+                newWebOpp.setTitle(item.getOpportunityTitle().trim());
+                String desc = (item.getOpportunityDescription() != null && !item.getOpportunityDescription().isBlank())
+                        ? item.getOpportunityDescription()
+                        : item.getJustification();
+                newWebOpp.setDescription(desc);
+                newWebOpp.setShortDescription(desc != null && desc.length() > 110 ? desc.substring(0, 110) + "..." : desc);
+                newWebOpp.setMatchScore(item.getMatchScore() != null ? item.getMatchScore() : 88);
+                newWebOpp.setMetaInfo(item.getOpportunityMeta() != null && !item.getOpportunityMeta().isBlank()
+                        ? item.getOpportunityMeta()
+                        : "Inscrições abertas · Web · Brasil");
+                newWebOpp.setTags(item.getOpportunityTags() != null && !item.getOpportunityTags().isBlank()
+                        ? item.getOpportunityTags()
+                        : "Web • Edital Real • IA");
+                newWebOpp.setExternalUrl(item.getUrl());
+                newWebOpp.setStatus(OpportunityStatus.PUBLICADA);
+
+                String color = switch (oppType) {
+                    case EDITAL -> "bg-[#fff2b8] text-[#795900]";
+                    case POC -> "bg-[#d9f1e5] text-[#16734d]";
+                    case EVENTO -> "bg-[#dff1f5] text-[#1e7080]";
+                    case COMPRA -> "bg-[#ffe1c3] text-[#975524]";
+                };
+                newWebOpp.setColor(color);
+
+                newWebOpp = opportunityRepository.save(newWebOpp);
+                newWebOpp.setCode("web-" + newWebOpp.getId());
+                matchedOpp = opportunityRepository.save(newWebOpp);
+                opportunities.add(matchedOpp);
+                log.info("Nova oportunidade real raspada pela IA salva no MySQL: '{}' (ID {})", matchedOpp.getTitle(), matchedOpp.getId());
+            }
+
             if (matchedOpp != null) {
-                // Atualiza o score na oportunidade
                 matchedOpp.setMatchScore(item.getMatchScore());
                 opportunityRepository.save(matchedOpp);
 
-                // Busca ou cria o registro do match
                 Optional<MatchResult> existing = matchResultRepository.findByStartupProfileIdAndOpportunityId(profile.getId(), matchedOpp.getId());
                 MatchResult match = existing.orElseGet(MatchResult::new);
                 match.setStartupProfile(profile);
@@ -112,6 +169,20 @@ public class MatchService {
             }
         }
 
+        savedResults.sort((a, b) -> Integer.compare(b.getMatchScore(), a.getMatchScore()));
+
+        if (!savedResults.isEmpty()) {
+            MatchResult best = savedResults.get(0);
+            notificationRepository.save(new Notification(
+                    null,
+                    "Matches e editais da web atualizados pela IA",
+                    profile.getName() + " × " + best.getOpportunity().getTitle() + " (" + best.getMatchScore() + "% de compatibilidade).",
+                    "Agora",
+                    "Matches",
+                    false
+            ));
+        }
+
         return savedResults.stream().map(MatchResultDTO::fromEntity).toList();
     }
 
@@ -123,5 +194,66 @@ public class MatchService {
         match.setStatus(MatchStatus.fromString(newStatus));
         MatchResult saved = matchResultRepository.save(match);
         return MatchResultDTO.fromEntity(saved);
+    }
+
+    @Transactional
+    public MatchResultDTO participateInOpportunity(Long startupId, String opportunityIdOrCode) {
+        StartupProfile profile = resolveStartupProfile(startupId);
+        if (profile == null) {
+            throw new IllegalArgumentException("Perfil de startup não encontrado.");
+        }
+
+        Opportunity opp = null;
+        try {
+            Long oppId = Long.parseLong(opportunityIdOrCode);
+            opp = opportunityRepository.findById(oppId).orElse(null);
+        } catch (NumberFormatException ignored) {
+            opp = opportunityRepository.findByCode(opportunityIdOrCode).orElse(null);
+        }
+
+        if (opp == null) {
+            throw new IllegalArgumentException("Oportunidade não encontrada: " + opportunityIdOrCode);
+        }
+
+        final Opportunity targetOpp = opp;
+        MatchResult match = matchResultRepository
+                .findByStartupProfileIdAndOpportunityId(profile.getId(), targetOpp.getId())
+                .orElseGet(() -> {
+                    MatchResult m = new MatchResult();
+                    m.setStartupProfile(profile);
+                    m.setOpportunity(targetOpp);
+                    m.setMatchScore(targetOpp.getMatchScore() != null ? targetOpp.getMatchScore() : 90);
+                    m.setJustification("Interesse registrado diretamente pela startup " + profile.getName() + ".");
+                    m.setRecommendedAction("Acompanhar retorno da organização responsável.");
+                    m.setReasonProfile((profile.getMainArea() != null ? profile.getMainArea() : "Inovação") + " · " + (profile.getBusinessModel() != null ? profile.getBusinessModel() : "B2B"));
+                    m.setReasonRequirements(profile.getTechnologies() != null ? profile.getTechnologies() : "Requisitos técnicos compatíveis");
+                    m.setReasonObjective(profile.getMainObjective() != null ? profile.getMainObjective() : "Validação e negócios");
+                    m.setReasonContext(profile.getLocation() != null ? profile.getLocation() : "Brasil");
+                    return m;
+                });
+
+        match.setStatus(MatchStatus.INTERESSE_ENVIADO);
+        MatchResult saved = matchResultRepository.save(match);
+
+        notificationRepository.save(new Notification(
+                null,
+                "Interesse registrado em oportunidade",
+                "Você registrou participação em '" + targetOpp.getTitle() + "'.",
+                "Agora",
+                "Oportunidades",
+                false
+        ));
+
+        return MatchResultDTO.fromEntity(saved);
+    }
+
+    private StartupProfile resolveStartupProfile(Long startupId) {
+        if (startupId != null) {
+            Optional<StartupProfile> byId = startupProfileRepository.findById(startupId);
+            if (byId.isPresent()) return byId.get();
+            Optional<StartupProfile> byUser = startupProfileRepository.findByUserId(startupId);
+            if (byUser.isPresent()) return byUser.get();
+        }
+        return startupProfileRepository.findAll().stream().findFirst().orElse(null);
     }
 }

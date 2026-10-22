@@ -44,8 +44,12 @@ public class AiController {
     @Operation(summary = "Conversa com o Assistente IA do StartIn contextualizado ao perfil da startup")
     public ResponseEntity<AiChatResponseDTO> chat(@RequestBody AiChatRequestDTO request) {
         StartupProfile profile = null;
-        if (request.getStartup() != null && request.getStartup().getId() != null) {
-            profile = startupProfileRepository.findById(request.getStartup().getId()).orElse(null);
+        Long sid = request.getStartupId();
+        if (sid == null && request.getStartup() != null) {
+            sid = request.getStartup().getId();
+        }
+        if (sid != null) {
+            profile = startupProfileRepository.findById(sid).orElse(null);
         }
         if (profile == null) {
             profile = startupProfileRepository.findAll().stream().findFirst().orElse(null);
@@ -56,10 +60,10 @@ public class AiController {
     }
 
     @PostMapping("/match")
-    @Operation(summary = "Executa o matchmaking completo via IA Python e persiste os resultados")
+    @Operation(summary = "Executa o matchmaking completo via IA Python (incluindo scraping web) e persiste os resultados")
     public ResponseEntity<List<MatchResultDTO>> triggerMatch(@RequestBody(required = false) MatchTriggerRequestDTO request) {
-        Long startupId = (request != null && request.getStartupId() != null) ? request.getStartupId() : 1L;
-        boolean scrape = request != null && Boolean.TRUE.equals(request.getScrapeLiveWeb());
+        Long startupId = (request != null) ? request.getStartupId() : null;
+        boolean scrape = request == null || request.getScrapeLiveWeb() == null || Boolean.TRUE.equals(request.getScrapeLiveWeb());
         return ResponseEntity.ok(matchService.recalculateMatches(startupId, scrape));
     }
 }

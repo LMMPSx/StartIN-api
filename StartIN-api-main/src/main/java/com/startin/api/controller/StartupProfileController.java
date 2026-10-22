@@ -20,9 +20,21 @@ public class StartupProfileController {
     }
 
     @GetMapping("/default")
-    @Operation(summary = "Retorna o perfil padrão da startup ativa (ex: Nexa Health)")
+    @Operation(summary = "Retorna o primeiro perfil de startup cadastrado no banco")
     public ResponseEntity<StartupProfileDTO> getDefaultProfile() {
-        return ResponseEntity.ok(startupProfileService.getDefaultProfile());
+        StartupProfileDTO dto = startupProfileService.getDefaultProfile();
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "Busca perfil de startup pelo ID do usuário")
+    public ResponseEntity<StartupProfileDTO> getProfileByUserId(@PathVariable Long userId) {
+        return startupProfileService.getProfileByUserId(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")
@@ -34,7 +46,7 @@ public class StartupProfileController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza os dados de onboarding e perfil da startup")
+    @Operation(summary = "Atualiza todos os dados de onboarding e perfil da startup")
     public ResponseEntity<StartupProfileDTO> updateProfile(
             @PathVariable Long id,
             @RequestBody StartupProfileDTO dto) {

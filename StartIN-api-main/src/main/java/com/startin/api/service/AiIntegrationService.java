@@ -28,7 +28,7 @@ public class AiIntegrationService {
     public AiIntegrationService(
             RestTemplateBuilder builder,
             @Value("${startin.ai.base-url:http://localhost:8000}") String aiBaseUrl,
-            @Value("${startin.ai.timeout-seconds:30}") int timeoutSeconds) {
+            @Value("${startin.ai.timeout-seconds:45}") int timeoutSeconds) {
         this.aiBaseUrl = aiBaseUrl;
         this.restTemplate = builder
                 .setConnectTimeout(Duration.ofSeconds(timeoutSeconds))
@@ -51,7 +51,7 @@ public class AiIntegrationService {
     }
 
     /**
-     * Envia os dados do usuário/startup e lista de oportunidades para o modelo de IA em Python processar.
+     * Envia TODOS os dados do usuário/startup e lista de oportunidades para o modelo de IA em Python processar.
      */
     public AiMatchResponseDTO calculateMatches(StartupProfile profile, List<Opportunity> opportunities, boolean scrapeLiveWeb) {
         AiStartupInputDTO startupDto = mapProfileToAiInput(profile);
@@ -78,23 +78,22 @@ public class AiIntegrationService {
             HttpEntity<AiMatchRequestDTO> entity = new HttpEntity<>(requestPayload, headers);
 
             String url = aiBaseUrl + "/api/ai/match";
-            log.info("Chamando IA em Python em {} para startup: {}", url, profile.getName());
+            log.info("Enviando dados completos do usuário/startup '{}' (ID {}) para IA Python em {}", profile.getName(), profile.getId(), url);
 
             ResponseEntity<AiMatchResponseDTO> response = restTemplate.postForEntity(url, entity, AiMatchResponseDTO.class);
             if (response.getBody() != null && response.getBody().getMatches() != null) {
-                log.info("IA retornou com sucesso {} matches para {}", response.getBody().getMatches().size(), profile.getName());
+                log.info("IA Python retornou {} matches calculados para '{}'", response.getBody().getMatches().size(), profile.getName());
                 return response.getBody();
             }
         } catch (Exception e) {
-            log.error("Falha ao comunicar com o microserviço Python de IA: {}. Executando algoritmo de fallback...", e.getMessage());
+            log.error("Falha ao comunicar com o microserviço Python de IA: {}. Calculando compatibilidade multi-critério com os dados do banco...", e.getMessage());
         }
 
-        // Fallback robusto caso o Python não esteja executando no momento
         return fallbackCalculateMatches(startupDto, oppsDto);
     }
 
     /**
-     * Conversação com o assistente inteligente
+     * Conversação com o assistente inteligente contextualizada com todos os dados do usuário/startup
      */
     public String chatWithAssistant(List<Map<String, String>> messages, StartupProfile profile) {
         AiStartupInputDTO startupDto = profile != null ? mapProfileToAiInput(profile) : null;
@@ -116,24 +115,70 @@ public class AiIntegrationService {
             log.warn("Erro ao chamar endpoint de chat da IA Python: {}", e.getMessage());
         }
 
-        return "Analisei as informações disponíveis para sua startup. Recomendo focar nos editais de Inovação Aberta e nas POCs com alta aderência em IA e automação.";
+        String name = (profile != null && profile.getName() != null) ? profile.getName() : "sua startup";
+        String area = (profile != null && profile.getMainArea() != null) ? profile.getMainArea() : "inovação";
+        return "Analisei os dados reais da " + name + " (" + area + ") no banco de dados. Recomendo verificar os matches calculados na aba 'Matches' e priorizar as oportunidades compatíveis com suas tecnologias e metas.";
     }
 
     private AiStartupInputDTO mapProfileToAiInput(StartupProfile profile) {
         AiStartupInputDTO dto = new AiStartupInputDTO();
         dto.setId(profile.getId());
+        if (profile.getUser() != null) {
+            dto.setUserId(profile.getUser().getId());
+            dto.setUserName(profile.getUser().getName());
+            dto.setUserEmail(profile.getUser().getEmail());
+        }
+
+        // 01. Identidade
         dto.setName(profile.getName());
-        dto.setSector(profile.getMainArea());
+        dto.setSector(profile.getMainArea() != null ? profile.getMainArea() : profile.getMainSector());
         dto.setMainArea(profile.getMainArea());
-        dto.setStage(profile.getCurrentStage());
-        dto.setCurrentStage(profile.getCurrentStage());
         dto.setDescription(profile.getDescription());
+        dto.setLocation(profile.getLocation());
+        dto.setCnpj(profile.getCnpj());
+        dto.setWebsite(profile.getWebsite());
+        dto.setFoundedYear(profile.getFoundedYear());
+
+        // 02. Solução
         dto.setProblem(profile.getProblem());
         dto.setHowItWorks(profile.getHowItWorks());
         dto.setDifferentiator(profile.getDifferentiator());
+        dto.setImpact(profile.getImpact());
         dto.setBusinessModel(profile.getBusinessModel());
+
+        // 03. Mercado
         dto.setTargetAudience(profile.getTargetAudience());
-        dto.setLocation(profile.getLocation());
+        dto.setMainSector(profile.getMainSector());
+        dto.setOperationRegion(profile.getOperationRegion());
+        dto.setState(profile.getState());
+        dto.setCustomerProfile(profile.getCustomerProfile());
+        dto.setMarketSize(profile.getMarketSize());
+        dto.setCompetitors(profile.getCompetitors());
+        dto.setMainChannel(profile.getMainChannel());
+
+        // 04. Momento e Tração
+        dto.setStage(profile.getCurrentStage());
+        dto.setCurrentStage(profile.getCurrentStage());
+        dto.setTractionCustomers(profile.getTractionCustomers());
+        dto.setProductMaturity(profile.getProductMaturity());
+        dto.setTeamSize(profile.getTeamSize());
+        dto.setAnnualRevenue(profile.getAnnualRevenue());
+        dto.setRecentGrowth(profile.getRecentGrowth());
+        dto.setInvestmentRaised(profile.getInvestmentRaised());
+
+        // 05. Objetivos
+        dto.setMainObjective(profile.getMainObjective());
+        dto.setInvestmentNeed(profile.getInvestmentNeed());
+        dto.setExecutionDeadline(profile.getExecutionDeadline());
+        dto.setResourceUse(profile.getResourceUse());
+        dto.setTwelveMonthGoal(profile.getTwelveMonthGoal());
+        dto.setStrategicPriority(profile.getStrategicPriority());
+        dto.setDesiredPartners(profile.getDesiredPartners());
+
+        // 06. Preferências
+        dto.setAreasOfInterest(profile.getAreasOfInterest());
+        dto.setOpportunityTypes(profile.getOpportunityTypes());
+        dto.setReceiveAiRecommendations(profile.getReceiveAiRecommendations());
 
         List<String> tags = new ArrayList<>();
         if (profile.getTechnologies() != null && !profile.getTechnologies().isBlank()) {
@@ -143,10 +188,12 @@ public class AiIntegrationService {
                     .toList());
         }
         if (profile.getAreasOfInterest() != null && !profile.getAreasOfInterest().isBlank()) {
-            tags.addAll(Arrays.stream(profile.getAreasOfInterest().split("[,•]"))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList());
+            for (String item : profile.getAreasOfInterest().split("[,•]")) {
+                String trimmed = item.trim();
+                if (!trimmed.isEmpty() && !tags.contains(trimmed)) {
+                    tags.add(trimmed);
+                }
+            }
         }
         dto.setTags(tags);
         dto.setTechnologies(tags);
@@ -156,7 +203,17 @@ public class AiIntegrationService {
 
     private AiMatchResponseDTO fallbackCalculateMatches(AiStartupInputDTO startup, List<AiOpportunityInputDTO> opps) {
         AiMatchResponseDTO response = new AiMatchResponseDTO();
-        response.setStartupName(startup.getName());
+        String startupName = (startup.getName() != null && !startup.getName().isBlank()) ? startup.getName() : "Sua Startup";
+        String mainArea = (startup.getMainArea() != null && !startup.getMainArea().isBlank()) ? startup.getMainArea() : "Inovação";
+        String businessModel = (startup.getBusinessModel() != null && !startup.getBusinessModel().isBlank()) ? startup.getBusinessModel() : "B2B";
+        String stage = (startup.getCurrentStage() != null && !startup.getCurrentStage().isBlank()) ? startup.getCurrentStage() : "Validação";
+        String location = (startup.getLocation() != null && !startup.getLocation().isBlank()) ? startup.getLocation() : "Brasil";
+        String objective = (startup.getMainObjective() != null && !startup.getMainObjective().isBlank()) ? startup.getMainObjective() : "Validação e escala";
+        String techs = (startup.getTags() != null && !startup.getTags().isEmpty())
+                ? String.join(" · ", startup.getTags())
+                : mainArea;
+
+        response.setStartupName(startupName);
         response.setTotalAnalyzed(opps.size());
 
         List<AiMatchItemDTO> matches = new ArrayList<>();
@@ -166,21 +223,36 @@ public class AiIntegrationService {
             item.setOpportunityTitle(opp.getTitle());
             item.setUrl(opp.getUrl());
 
-            int score = 88;
-            if (opp.getTitle().contains("Inovação Aberta")) score = 96;
-            else if (opp.getTitle().contains("Inteligência Operacional")) score = 94;
-            else if (opp.getTitle().contains("Recife")) score = 89;
-            else if (opp.getTitle().contains("Dados")) score = 87;
+            int score = 76;
+            String oppText = ((opp.getTitle() != null ? opp.getTitle() : "") + " " +
+                    (opp.getDescription() != null ? opp.getDescription() : "") + " " +
+                    (opp.getTags() != null ? opp.getTags() : "")).toLowerCase();
+
+            if (startup.getTags() != null) {
+                for (String t : startup.getTags()) {
+                    if (oppText.contains(t.toLowerCase())) {
+                        score += 5;
+                    }
+                }
+            }
+            if (startup.getOpportunityTypes() != null && opp.getType() != null &&
+                    startup.getOpportunityTypes().toLowerCase().contains(opp.getType().toLowerCase())) {
+                score += 6;
+            }
+            if (oppText.contains(mainArea.toLowerCase())) {
+                score += 5;
+            }
+            score = Math.min(Math.max(score, 70), 98);
 
             item.setMatchScore(score);
-            item.setJustification("A startup " + startup.getName() + " apresenta alta aderência temática e requisitos tecnológicos compatíveis com " + opp.getTitle() + ".");
-            item.setRecommendedAction("Preparar pitch deck detalhando a solução de " + (startup.getSector() != null ? startup.getSector() : "tecnologia") + ".");
+            item.setJustification("A startup " + startupName + " (" + mainArea + " · " + businessModel + ") apresenta alta aderência técnica e estratégica com '" + opp.getTitle() + "' pelas competências em " + techs + ".");
+            item.setRecommendedAction("Apresentar a solução da " + startupName + " destacando foco em " + objective + ".");
 
             AiMatchReasonsDTO reasons = new AiMatchReasonsDTO(
-                    (startup.getSector() != null ? startup.getSector() : "Healthtech") + " · SaaS · B2B",
-                    "IA · Dados · Automação atendem os requisitos técnicos",
-                    "Validação em ambiente real compatível com a demanda",
-                    "Brasil · B2B · validação compatíveis"
+                    mainArea + " · " + businessModel + " (" + stage + ")",
+                    "Tecnologias da " + startupName + ": " + techs,
+                    objective + (startup.getInvestmentNeed() != null ? " · Captação: " + startup.getInvestmentNeed() : ""),
+                    location + " · " + (opp.getMeta() != null ? opp.getMeta() : "Compatível")
             );
             item.setReasons(reasons);
             matches.add(item);

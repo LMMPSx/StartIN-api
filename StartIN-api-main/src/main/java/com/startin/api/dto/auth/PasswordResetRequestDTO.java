@@ -1,12 +1,10 @@
 package com.startin.api.dto.auth;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class PasswordResetRequestDTO {
 
-    @NotBlank(message = "E-mail é obrigatório")
-    @Email(message = "E-mail inválido")
+    @NotBlank(message = "E-mail ou usuário é obrigatório")
     private String email;
 
     private String newPassword;

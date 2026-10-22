@@ -19,7 +19,7 @@ public class Company {
     @Column(nullable = false)
     private CompanyType type = CompanyType.EMPRESA;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     private String tags;

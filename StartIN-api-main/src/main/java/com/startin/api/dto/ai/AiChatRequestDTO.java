@@ -7,6 +7,7 @@ import java.util.Map;
 public class AiChatRequestDTO {
 
     private List<Map<String, String>> messages = new ArrayList<>();
+    private Long startupId;
     private AiStartupInputDTO startup;
 
     public AiChatRequestDTO() {
@@ -14,6 +15,8 @@ public class AiChatRequestDTO {
 
     public List<Map<String, String>> getMessages() { return messages; }
     public void setMessages(List<Map<String, String>> messages) { this.messages = messages; }
+    public Long getStartupId() { return startupId; }
+    public void setStartupId(Long startupId) { this.startupId = startupId; }
     public AiStartupInputDTO getStartup() { return startup; }
     public void setStartup(AiStartupInputDTO startup) { this.startup = startup; }
 }

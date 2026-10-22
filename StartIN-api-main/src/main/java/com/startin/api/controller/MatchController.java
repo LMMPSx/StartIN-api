@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/matches")
@@ -25,7 +26,7 @@ public class MatchController {
 
     @GetMapping
     @Operation(summary = "Lista todos os matches calculados para a startup")
-    public ResponseEntity<List<MatchResultDTO>> getMatches(@RequestParam(defaultValue = "1") Long startupId) {
+    public ResponseEntity<List<MatchResultDTO>> getMatches(@RequestParam(required = false) Long startupId) {
         return ResponseEntity.ok(matchService.getMatchesForStartup(startupId));
     }
 
@@ -38,11 +39,19 @@ public class MatchController {
     }
 
     @PostMapping("/recalculate")
-    @Operation(summary = "Aciona o microserviço de IA em Python para recalcular matches em tempo real")
+    @Operation(summary = "Aciona o microserviço de IA em Python para raspar editais da web e recalcular matches em tempo real")
     public ResponseEntity<List<MatchResultDTO>> recalculate(@RequestBody(required = false) MatchTriggerRequestDTO request) {
-        Long startupId = (request != null && request.getStartupId() != null) ? request.getStartupId() : 1L;
-        boolean scrape = request != null && Boolean.TRUE.equals(request.getScrapeLiveWeb());
+        Long startupId = (request != null) ? request.getStartupId() : null;
+        boolean scrape = request == null || request.getScrapeLiveWeb() == null || Boolean.TRUE.equals(request.getScrapeLiveWeb());
         return ResponseEntity.ok(matchService.recalculateMatches(startupId, scrape));
+    }
+
+    @PostMapping("/participate")
+    @Operation(summary = "Registra interesse/participação da startup em uma oportunidade")
+    public ResponseEntity<MatchResultDTO> participate(@RequestBody Map<String, Object> payload) {
+        Long startupId = payload.get("startupId") != null ? Long.valueOf(String.valueOf(payload.get("startupId"))) : null;
+        String oppId = String.valueOf(payload.get("opportunityId"));
+        return ResponseEntity.ok(matchService.participateInOpportunity(startupId, oppId));
     }
 
     @PatchMapping("/{id}/status")
