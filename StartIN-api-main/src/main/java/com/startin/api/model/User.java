@@ -22,6 +22,9 @@ public class User {
 
     private String cnpj;
 
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role = UserRole.USER;
@@ -91,6 +94,14 @@ public class User {
 
     public void setCnpj(String cnpj) {
         this.cnpj = cnpj;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public UserRole getRole() {

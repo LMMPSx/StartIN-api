@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/startups")
 @Tag(name = "Startup", description = "Endpoints para gerenciamento do perfil e preferências da startup")
@@ -17,6 +19,12 @@ public class StartupProfileController {
 
     public StartupProfileController(StartupProfileService startupProfileService) {
         this.startupProfileService = startupProfileService;
+    }
+
+    @GetMapping
+    @Operation(summary = "Lista todos os perfis de startup cadastrados no banco")
+    public ResponseEntity<List<StartupProfileDTO>> getAllProfiles() {
+        return ResponseEntity.ok(startupProfileService.getAllProfiles());
     }
 
     @GetMapping("/default")

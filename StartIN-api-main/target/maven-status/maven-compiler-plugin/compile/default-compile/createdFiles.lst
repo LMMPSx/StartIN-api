@@ -26,6 +26,7 @@ com\startin\api\service\OpportunityService$1.class
 com\startin\api\dto\ai\AiMatchReasonsDTO.class
 com\startin\api\model\Opportunity.class
 com\startin\api\service\CompanyService.class
+com\startin\api\dto\ai\AiDailySyncPayloadDTO$ScrapedOpportunityDTO.class
 com\startin\api\dto\dashboard\DashboardSummaryDTO.class
 com\startin\api\dto\ai\AiOpportunityInputDTO.class
 com\startin\api\repository\OpportunityRepository.class
@@ -35,6 +36,7 @@ com\startin\api\service\MatchService.class
 com\startin\api\controller\CompanyController.class
 com\startin\api\repository\NotificationRepository.class
 com\startin\api\model\enums\MatchStatus.class
+com\startin\api\dto\ai\AiDailySyncPayloadDTO$StartupMatchesBatchDTO.class
 com\startin\api\dto\auth\AuthResponseDTO.class
 com\startin\api\dto\opportunity\CreateOpportunityDTO.class
 com\startin\api\repository\UserRepository.class
@@ -60,5 +62,6 @@ com\startin\api\dto\ai\AiMatchItemDTO.class
 com\startin\api\service\OpportunityService.class
 com\startin\api\dto\match\MatchTriggerRequestDTO.class
 com\startin\api\model\StartupProfile.class
+com\startin\api\dto\ai\AiDailySyncPayloadDTO.class
 com\startin\api\repository\CompanyRepository.class
 com\startin\api\dto\match\UpdateMatchStatusDTO.class

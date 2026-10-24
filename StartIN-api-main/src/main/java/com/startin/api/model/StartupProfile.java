@@ -127,6 +127,11 @@ public class StartupProfile {
 
     private String opportunityTypes;
     private Boolean receiveAiRecommendations = true;
+    private Boolean emailNotifications = true;
+    private Boolean matchAlerts = true;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatarUrl;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -226,6 +231,12 @@ public class StartupProfile {
     public void setOpportunityTypes(String opportunityTypes) { this.opportunityTypes = opportunityTypes; }
     public Boolean getReceiveAiRecommendations() { return receiveAiRecommendations; }
     public void setReceiveAiRecommendations(Boolean receiveAiRecommendations) { this.receiveAiRecommendations = receiveAiRecommendations; }
+    public Boolean getEmailNotifications() { return emailNotifications; }
+    public void setEmailNotifications(Boolean emailNotifications) { this.emailNotifications = emailNotifications; }
+    public Boolean getMatchAlerts() { return matchAlerts; }
+    public void setMatchAlerts(Boolean matchAlerts) { this.matchAlerts = matchAlerts; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

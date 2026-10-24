@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) DEFAULT NULL,
     cnpj VARCHAR(30) DEFAULT NULL,
+    avatar_url LONGTEXT DEFAULT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -82,6 +83,9 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     areas_of_interest TEXT DEFAULT NULL,
     opportunity_types VARCHAR(255) DEFAULT NULL,
     receive_ai_recommendations BIT(1) DEFAULT b'1',
+    email_notifications BIT(1) DEFAULT b'1',
+    match_alerts BIT(1) DEFAULT b'1',
+    avatar_url LONGTEXT DEFAULT NULL,
 
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),

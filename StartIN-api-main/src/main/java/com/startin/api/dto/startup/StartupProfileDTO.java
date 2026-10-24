@@ -58,6 +58,9 @@ public class StartupProfileDTO {
     private String areasOfInterest;
     private String opportunityTypes;
     private Boolean receiveAiRecommendations;
+    private Boolean emailNotifications;
+    private Boolean matchAlerts;
+    private String avatarUrl;
 
     public StartupProfileDTO() {
     }
@@ -71,6 +74,11 @@ public class StartupProfileDTO {
             dto.setUserName(entity.getUser().getName());
             dto.setUserEmail(entity.getUser().getEmail());
         }
+        String resolvedAvatar = entity.getAvatarUrl();
+        if ((resolvedAvatar == null || resolvedAvatar.isBlank()) && entity.getUser() != null) {
+            resolvedAvatar = entity.getUser().getAvatarUrl();
+        }
+        dto.setAvatarUrl(resolvedAvatar);
         dto.setName(entity.getName());
         dto.setMainArea(entity.getMainArea());
         dto.setDescription(entity.getDescription());
@@ -114,6 +122,8 @@ public class StartupProfileDTO {
         dto.setAreasOfInterest(entity.getAreasOfInterest());
         dto.setOpportunityTypes(entity.getOpportunityTypes());
         dto.setReceiveAiRecommendations(entity.getReceiveAiRecommendations());
+        dto.setEmailNotifications(entity.getEmailNotifications() != null ? entity.getEmailNotifications() : true);
+        dto.setMatchAlerts(entity.getMatchAlerts() != null ? entity.getMatchAlerts() : true);
 
         return dto;
     }
@@ -163,9 +173,23 @@ public class StartupProfileDTO {
         if (this.areasOfInterest != null) entity.setAreasOfInterest(this.areasOfInterest);
         if (this.opportunityTypes != null) entity.setOpportunityTypes(this.opportunityTypes);
         if (this.receiveAiRecommendations != null) entity.setReceiveAiRecommendations(this.receiveAiRecommendations);
+        if (this.emailNotifications != null) entity.setEmailNotifications(this.emailNotifications);
+        if (this.matchAlerts != null) entity.setMatchAlerts(this.matchAlerts);
+        if (this.avatarUrl != null) {
+            entity.setAvatarUrl(this.avatarUrl);
+            if (entity.getUser() != null) {
+                entity.getUser().setAvatarUrl(this.avatarUrl);
+            }
+        }
     }
 
     // Getters and Setters
+    public Boolean getEmailNotifications() { return emailNotifications; }
+    public void setEmailNotifications(Boolean emailNotifications) { this.emailNotifications = emailNotifications; }
+    public Boolean getMatchAlerts() { return matchAlerts; }
+    public void setMatchAlerts(Boolean matchAlerts) { this.matchAlerts = matchAlerts; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getUserId() { return userId; }

@@ -51,6 +51,20 @@ public class AiIntegrationService {
     }
 
     /**
+     * Solicita ao microserviço Python o JSON completo da rotina diária das 08:00 (scraping + matches).
+     */
+    public AiDailySyncPayloadDTO fetchDailyScrapeJsonFromAi() {
+        try {
+            String url = aiBaseUrl + "/api/ai/daily-scrape-json";
+            ResponseEntity<AiDailySyncPayloadDTO> response = restTemplate.getForEntity(url, AiDailySyncPayloadDTO.class);
+            return response.getBody();
+        } catch (Exception e) {
+            log.warn("Aviso ao consultar JSON diário das 08:00 na IA Python: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Envia TODOS os dados do usuário/startup e lista de oportunidades para o modelo de IA em Python processar.
      */
     public AiMatchResponseDTO calculateMatches(StartupProfile profile, List<Opportunity> opportunities, boolean scrapeLiveWeb) {
@@ -93,7 +107,7 @@ public class AiIntegrationService {
     }
 
     /**
-     * Conversação com o assistente inteligente contextualizada com todos os dados do usuário/startup
+     * Conversação com o assistente inteligente restrita ao projeto StartIn, sucinta e em texto plano (sem markdown).
      */
     public String chatWithAssistant(List<Map<String, String>> messages, StartupProfile profile) {
         AiStartupInputDTO startupDto = profile != null ? mapProfileToAiInput(profile) : null;
@@ -109,15 +123,26 @@ public class AiIntegrationService {
             String url = aiBaseUrl + "/api/ai/chat";
             ResponseEntity<AiChatResponseDTO> response = restTemplate.postForEntity(url, entity, AiChatResponseDTO.class);
             if (response.getBody() != null && response.getBody().getReply() != null) {
-                return response.getBody().getReply();
+                return cleanPlainText(response.getBody().getReply());
             }
         } catch (Exception e) {
             log.warn("Erro ao chamar endpoint de chat da IA Python: {}", e.getMessage());
         }
 
         String name = (profile != null && profile.getName() != null) ? profile.getName() : "sua startup";
-        String area = (profile != null && profile.getMainArea() != null) ? profile.getMainArea() : "inovação";
-        return "Analisei os dados reais da " + name + " (" + area + ") no banco de dados. Recomendo verificar os matches calculados na aba 'Matches' e priorizar as oportunidades compatíveis com suas tecnologias e metas.";
+        String area = (profile != null && profile.getMainArea() != null) ? profile.getMainArea() : "inovacao";
+        return "Analisei os dados da " + name + " (" + area + ") na plataforma StartIn. Acesse as abas Para voce e Matches para acompanhar os editais, eventos, POCs e compras alinhados ao seu perfil.";
+    }
+
+    private String cleanPlainText(String text) {
+        if (text == null) return "";
+        return text
+                .replaceAll("\\*\\*", "")
+                .replaceAll("\\*", "")
+                .replaceAll("#+", "")
+                .replaceAll("`", "")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private AiStartupInputDTO mapProfileToAiInput(StartupProfile profile) {
@@ -248,13 +273,13 @@ public class AiIntegrationService {
             item.setJustification("A startup " + startupName + " (" + mainArea + " · " + businessModel + ") apresenta alta aderência técnica e estratégica com '" + opp.getTitle() + "' pelas competências em " + techs + ".");
             item.setRecommendedAction("Apresentar a solução da " + startupName + " destacando foco em " + objective + ".");
 
-            AiMatchReasonsDTO reasons = new AiMatchReasonsDTO(
-                    mainArea + " · " + businessModel + " (" + stage + ")",
-                    "Tecnologias da " + startupName + ": " + techs,
-                    objective + (startup.getInvestmentNeed() != null ? " · Captação: " + startup.getInvestmentNeed() : ""),
-                    location + " · " + (opp.getMeta() != null ? opp.getMeta() : "Compatível")
-            );
+            AiMatchReasonsDTO reasons = new AiMatchReasonsDTO();
+            reasons.setPerfil(mainArea + " · " + businessModel + " (" + stage + ")");
+            reasons.setRequisitos(techs);
+            reasons.setObjetivo(objective);
+            reasons.setContexto(location + " · " + (opp.getMeta() != null ? opp.getMeta() : "Brasil"));
             item.setReasons(reasons);
+
             matches.add(item);
         }
 

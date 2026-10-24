@@ -8,29 +8,35 @@ public class AuthResponseDTO {
     private String email;
     private String name;
     private String cnpj;
+    private String avatarUrl;
     private Long startupProfileId;
     private String message;
 
     public AuthResponseDTO() {
     }
 
-    public AuthResponseDTO(boolean success, String token, Long userId, String email, String name, String cnpj, Long startupProfileId, String message) {
+    public AuthResponseDTO(boolean success, String token, Long userId, String email, String name, String cnpj, String avatarUrl, Long startupProfileId, String message) {
         this.success = success;
         this.token = token;
         this.userId = userId;
         this.email = email;
         this.name = name;
         this.cnpj = cnpj;
+        this.avatarUrl = avatarUrl;
         this.startupProfileId = startupProfileId;
         this.message = message;
     }
 
     public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, Long startupProfileId) {
-        return new AuthResponseDTO(true, token, userId, email, name, cnpj, startupProfileId, "Autenticado com sucesso");
+        return new AuthResponseDTO(true, token, userId, email, name, cnpj, null, startupProfileId, "Autenticado com sucesso");
+    }
+
+    public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, String avatarUrl, Long startupProfileId) {
+        return new AuthResponseDTO(true, token, userId, email, name, cnpj, avatarUrl, startupProfileId, "Autenticado com sucesso");
     }
 
     public static AuthResponseDTO error(String message) {
-        return new AuthResponseDTO(false, null, null, null, null, null, null, message);
+        return new AuthResponseDTO(false, null, null, null, null, null, null, null, message);
     }
 
     public boolean isSuccess() {
@@ -79,6 +85,14 @@ public class AuthResponseDTO {
 
     public void setCnpj(String cnpj) {
         this.cnpj = cnpj;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public Long getStartupProfileId() {

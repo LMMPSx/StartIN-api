@@ -11,6 +11,7 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\StartupProfileController.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiChatRequestDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiChatResponseDTO.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiDailySyncPayloadDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiMatchItemDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiMatchReasonsDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiMatchRequestDTO.java

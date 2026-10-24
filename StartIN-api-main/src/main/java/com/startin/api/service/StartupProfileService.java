@@ -9,6 +9,7 @@ import com.startin.api.repository.StartupProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -22,6 +23,12 @@ public class StartupProfileService {
             NotificationRepository notificationRepository) {
         this.startupProfileRepository = startupProfileRepository;
         this.notificationRepository = notificationRepository;
+    }
+
+    public List<StartupProfileDTO> getAllProfiles() {
+        return startupProfileRepository.findAll().stream()
+                .map(StartupProfileDTO::fromEntity)
+                .toList();
     }
 
     public Optional<StartupProfileDTO> getProfile(Long id) {
@@ -53,8 +60,8 @@ public class StartupProfileService {
 
         notificationRepository.save(new Notification(
                 null,
-                "Perfil da startup atualizado",
-                "Os dados da startup '" + saved.getName() + "' foram salvos no MySQL e enviados para o motor de IA.",
+                "Seu perfil foi atualizado",
+                "As preferências de matching foram aplicadas às novas recomendações.",
                 "Agora",
                 "Sistema",
                 false
@@ -78,13 +85,40 @@ public class StartupProfileService {
         if (prefs.getReceiveAiRecommendations() != null) {
             profile.setReceiveAiRecommendations(prefs.getReceiveAiRecommendations());
         }
+        if (prefs.getEmailNotifications() != null) {
+            profile.setEmailNotifications(prefs.getEmailNotifications());
+        }
+        if (prefs.getMatchAlerts() != null) {
+            profile.setMatchAlerts(prefs.getMatchAlerts());
+        }
+        if (prefs.getMainSector() != null) {
+            profile.setMainSector(prefs.getMainSector());
+        }
+        if (prefs.getTechnologies() != null) {
+            profile.setTechnologies(prefs.getTechnologies());
+        }
+        if (prefs.getOperationRegion() != null) {
+            profile.setOperationRegion(prefs.getOperationRegion());
+        }
+        if (prefs.getCurrentStage() != null) {
+            profile.setCurrentStage(prefs.getCurrentStage());
+        }
+        if (prefs.getInvestmentNeed() != null) {
+            profile.setInvestmentNeed(prefs.getInvestmentNeed());
+        }
+        if (prefs.getAvatarUrl() != null) {
+            profile.setAvatarUrl(prefs.getAvatarUrl());
+            if (profile.getUser() != null) {
+                profile.getUser().setAvatarUrl(prefs.getAvatarUrl());
+            }
+        }
 
         StartupProfile saved = startupProfileRepository.save(profile);
 
         notificationRepository.save(new Notification(
                 null,
-                "Preferências de matching atualizadas",
-                "A IA aplicou suas novas preferências (" + (saved.getAreasOfInterest() != null ? saved.getAreasOfInterest() : "geral") + ").",
+                "Seu perfil foi atualizado",
+                "As preferências de matching foram aplicadas às novas recomendações.",
                 "Agora",
                 "Sistema",
                 false

@@ -44,7 +44,6 @@ public class AuthService {
         user.setRole(UserRole.USER);
         user = userRepository.save(user);
 
-        // Cria automaticamente o perfil de startup vinculado ao usuário no MySQL
         StartupProfile profile = new StartupProfile();
         profile.setUser(user);
         profile.setName(request.getName() != null && !request.getName().isBlank() ? request.getName() : "Minha Startup");
@@ -53,7 +52,7 @@ public class AuthService {
         profile = startupProfileRepository.save(profile);
 
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), profile.getId());
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getAvatarUrl(), profile.getId());
     }
 
     public AuthResponseDTO login(LoginRequestDTO request) {
@@ -77,16 +76,19 @@ public class AuthService {
                     return startupProfileRepository.save(newProfile);
                 });
 
+        String avatar = user.getAvatarUrl() != null ? user.getAvatarUrl() : profile.getAvatarUrl();
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), profile.getId());
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), avatar, profile.getId());
     }
 
     public Optional<AuthResponseDTO> getUserInfo(Long userId) {
         return userRepository.findById(userId).map(user -> {
-            Long profileId = startupProfileRepository.findByUserId(user.getId())
-                    .map(StartupProfile::getId)
-                    .orElse(null);
-            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), profileId);
+            Optional<StartupProfile> profileOpt = startupProfileRepository.findByUserId(user.getId());
+            Long profileId = profileOpt.map(StartupProfile::getId).orElse(null);
+            String avatar = user.getAvatarUrl() != null
+                    ? user.getAvatarUrl()
+                    : profileOpt.map(StartupProfile::getAvatarUrl).orElse(null);
+            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), avatar, profileId);
         });
     }
 
@@ -102,11 +104,20 @@ public class AuthService {
             if (payload.get("cnpj") != null) {
                 user.setCnpj(payload.get("cnpj").trim());
             }
+            if (payload.containsKey("avatarUrl")) {
+                user.setAvatarUrl(payload.get("avatarUrl"));
+            }
             user = userRepository.save(user);
-            Long profileId = startupProfileRepository.findByUserId(user.getId())
-                    .map(StartupProfile::getId)
-                    .orElse(null);
-            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), profileId);
+
+            Optional<StartupProfile> profileOpt = startupProfileRepository.findByUserId(user.getId());
+            if (profileOpt.isPresent() && payload.containsKey("avatarUrl")) {
+                StartupProfile p = profileOpt.get();
+                p.setAvatarUrl(payload.get("avatarUrl"));
+                startupProfileRepository.save(p);
+            }
+
+            Long profileId = profileOpt.map(StartupProfile::getId).orElse(null);
+            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getAvatarUrl(), profileId);
         });
     }
 

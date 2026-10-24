@@ -15,6 +15,10 @@ public class MatchResultDTO {
     private String opportunityType;
     private String opportunityShort;
     private String opportunityMeta;
+    private String opportunityDescription;
+    private String opportunityTags;
+    private String opportunityColor;
+    private String opportunityExternalUrl;
     private Integer matchScore;
     private String justification;
     private String recommendedAction;
@@ -39,6 +43,10 @@ public class MatchResultDTO {
             dto.setOpportunityType(entity.getOpportunity().getType() != null ? entity.getOpportunity().getType().name() : "EDITAL");
             dto.setOpportunityShort(entity.getOpportunity().getShortDescription());
             dto.setOpportunityMeta(entity.getOpportunity().getMetaInfo());
+            dto.setOpportunityDescription(entity.getOpportunity().getDescription());
+            dto.setOpportunityTags(entity.getOpportunity().getTags());
+            dto.setOpportunityColor(entity.getOpportunity().getColor());
+            dto.setOpportunityExternalUrl(entity.getOpportunity().getExternalUrl());
         }
         dto.setMatchScore(entity.getMatchScore());
         dto.setJustification(entity.getJustification());
@@ -74,6 +82,14 @@ public class MatchResultDTO {
     public void setOpportunityShort(String opportunityShort) { this.opportunityShort = opportunityShort; }
     public String getOpportunityMeta() { return opportunityMeta; }
     public void setOpportunityMeta(String opportunityMeta) { this.opportunityMeta = opportunityMeta; }
+    public String getOpportunityDescription() { return opportunityDescription; }
+    public void setOpportunityDescription(String opportunityDescription) { this.opportunityDescription = opportunityDescription; }
+    public String getOpportunityTags() { return opportunityTags; }
+    public void setOpportunityTags(String opportunityTags) { this.opportunityTags = opportunityTags; }
+    public String getOpportunityColor() { return opportunityColor; }
+    public void setOpportunityColor(String opportunityColor) { this.opportunityColor = opportunityColor; }
+    public String getOpportunityExternalUrl() { return opportunityExternalUrl; }
+    public void setOpportunityExternalUrl(String opportunityExternalUrl) { this.opportunityExternalUrl = opportunityExternalUrl; }
     public Integer getMatchScore() { return matchScore; }
     public void setMatchScore(Integer matchScore) { this.matchScore = matchScore; }
     public String getJustification() { return justification; }

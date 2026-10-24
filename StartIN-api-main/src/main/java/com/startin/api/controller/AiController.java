@@ -2,6 +2,7 @@ package com.startin.api.controller;
 
 import com.startin.api.dto.ai.AiChatRequestDTO;
 import com.startin.api.dto.ai.AiChatResponseDTO;
+import com.startin.api.dto.ai.AiDailySyncPayloadDTO;
 import com.startin.api.dto.match.MatchResultDTO;
 import com.startin.api.dto.match.MatchTriggerRequestDTO;
 import com.startin.api.model.StartupProfile;
@@ -18,7 +19,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ai")
-@Tag(name = "Assistente IA & Motor de Matchmaking", description = "Endpoints de IA generativa, assistente virtual e scraping")
+@Tag(name = "Assistente IA & Motor de Matchmaking", description = "Endpoints de IA generativa, assistente virtual e rotina diária das 08:00")
 public class AiController {
 
     private final AiIntegrationService aiIntegrationService;
@@ -41,7 +42,7 @@ public class AiController {
     }
 
     @PostMapping("/chat")
-    @Operation(summary = "Conversa com o Assistente IA do StartIn contextualizado ao perfil da startup")
+    @Operation(summary = "Conversa com o Assistente IA do StartIn (restrito ao projeto, sucinto e texto plano)")
     public ResponseEntity<AiChatResponseDTO> chat(@RequestBody AiChatRequestDTO request) {
         StartupProfile profile = null;
         Long sid = request.getStartupId();
@@ -59,8 +60,15 @@ public class AiController {
         return ResponseEntity.ok(new AiChatResponseDTO(reply));
     }
 
+    @PostMapping("/daily-sync")
+    @Operation(summary = "Recebe o JSON diário das 08:00 da manhã gerado pela IA Python (scraping + matches) e persiste no MySQL")
+    public ResponseEntity<Map<String, Object>> receiveDailyAiJson(@RequestBody AiDailySyncPayloadDTO payload) {
+        Map<String, Object> result = matchService.persistDailyAiJson(payload);
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/match")
-    @Operation(summary = "Executa o matchmaking completo via IA Python (incluindo scraping web) e persiste os resultados")
+    @Operation(summary = "Executa o matchmaking via IA Python e persiste os resultados no MySQL")
     public ResponseEntity<List<MatchResultDTO>> triggerMatch(@RequestBody(required = false) MatchTriggerRequestDTO request) {
         Long startupId = (request != null) ? request.getStartupId() : null;
         boolean scrape = request == null || request.getScrapeLiveWeb() == null || Boolean.TRUE.equals(request.getScrapeLiveWeb());
