@@ -15,9 +15,13 @@ public class CreateOpportunityDTO {
     private String tags; // Perfil de startup desejado para o match
     private String meta;
     private String externalUrl;
+    private Long companyId;
 
     public CreateOpportunityDTO() {
     }
+
+    public Long getCompanyId() { return companyId; }
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }

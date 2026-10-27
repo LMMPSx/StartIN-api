@@ -8,16 +8,20 @@ public class UserDTO {
     private String email;
     private String name;
     private String cnpj;
+    private String phone;
+    private String avatarUrl;
     private String role;
 
     public UserDTO() {
     }
 
-    public UserDTO(Long id, String email, String name, String cnpj, String role) {
+    public UserDTO(Long id, String email, String name, String cnpj, String phone, String avatarUrl, String role) {
         this.id = id;
         this.email = email;
         this.name = name;
         this.cnpj = cnpj;
+        this.phone = phone;
+        this.avatarUrl = avatarUrl;
         this.role = role;
     }
 
@@ -28,6 +32,8 @@ public class UserDTO {
                 user.getEmail(),
                 user.getName(),
                 user.getCnpj(),
+                user.getPhone(),
+                user.getAvatarUrl(),
                 user.getRole() != null ? user.getRole().name() : "USER"
         );
     }
@@ -62,6 +68,22 @@ public class UserDTO {
 
     public void setCnpj(String cnpj) {
         this.cnpj = cnpj;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public String getRole() {

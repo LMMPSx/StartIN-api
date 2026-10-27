@@ -15,6 +15,7 @@ public class StartupProfileDTO {
     private String description;
     private String location;
     private String cnpj;
+    private String phone;
     private String website;
     private String foundedYear;
 
@@ -84,6 +85,11 @@ public class StartupProfileDTO {
         dto.setDescription(entity.getDescription());
         dto.setLocation(entity.getLocation());
         dto.setCnpj(entity.getCnpj());
+        String resolvedPhone = entity.getPhone();
+        if ((resolvedPhone == null || resolvedPhone.isBlank()) && entity.getUser() != null) {
+            resolvedPhone = entity.getUser().getPhone();
+        }
+        dto.setPhone(resolvedPhone);
         dto.setWebsite(entity.getWebsite());
         dto.setFoundedYear(entity.getFoundedYear());
 
@@ -135,6 +141,12 @@ public class StartupProfileDTO {
         if (this.description != null) entity.setDescription(this.description);
         if (this.location != null) entity.setLocation(this.location);
         if (this.cnpj != null) entity.setCnpj(this.cnpj);
+        if (this.phone != null) {
+            entity.setPhone(this.phone);
+            if (entity.getUser() != null) {
+                entity.getUser().setPhone(this.phone);
+            }
+        }
         if (this.website != null) entity.setWebsite(this.website);
         if (this.foundedYear != null) entity.setFoundedYear(this.foundedYear);
 
@@ -208,6 +220,8 @@ public class StartupProfileDTO {
     public void setLocation(String location) { this.location = location; }
     public String getCnpj() { return cnpj; }
     public void setCnpj(String cnpj) { this.cnpj = cnpj; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
     public String getWebsite() { return website; }
     public void setWebsite(String website) { this.website = website; }
     public String getFoundedYear() { return foundedYear; }

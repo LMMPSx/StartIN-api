@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) DEFAULT NULL,
     cnpj VARCHAR(30) DEFAULT NULL,
+    phone VARCHAR(50) DEFAULT NULL,
     avatar_url LONGTEXT DEFAULT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     description TEXT DEFAULT NULL,
     location VARCHAR(150) DEFAULT NULL,
     cnpj VARCHAR(30) DEFAULT NULL,
+    phone VARCHAR(50) DEFAULT NULL,
     website VARCHAR(255) DEFAULT NULL,
     founded_year VARCHAR(20) DEFAULT NULL,
 
@@ -101,12 +103,25 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS companies (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT DEFAULT NULL,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL DEFAULT 'EMPRESA',
+    sector VARCHAR(150) DEFAULT NULL,
+    location VARCHAR(150) DEFAULT NULL,
+    cnpj VARCHAR(30) DEFAULT NULL,
+    phone VARCHAR(50) DEFAULT NULL,
+    website VARCHAR(255) DEFAULT NULL,
     description TEXT DEFAULT NULL,
+    demands TEXT DEFAULT NULL,
     tags VARCHAR(500) DEFAULT NULL,
+    preferred_stage VARCHAR(150) DEFAULT NULL,
+    operation_mode VARCHAR(150) DEFAULT 'POC, Compra, POC + Compra',
+    avatar_url LONGTEXT DEFAULT NULL,
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (id)
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_companies_user FOREIGN KEY (user_id)
+        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -199,11 +214,11 @@ SELECT * FROM (
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE name = 'Empresa Alpha') LIMIT 1;
 
 INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'edital', 'EDITAL', 'Edital Inovação Aberta 2026',
-       'Apoio financeiro para startups com soluções B2B.',
+SELECT 'edital', 'EDITAL', 'Edital Inova Startups 6ª Edição 2026',
+       'Apoio financeiro e aceleração para startups com soluções B2B.',
        'Programa de inovação aberta para startups com soluções em dados, tecnologia aplicada e automação por IA. A oportunidade busca aplicações com potencial de validação em ambiente real e escalabilidade nacional.',
-       90, 'Prazo 15/10/2026 · Brasil · Remoto', 'IA • Dados • Automação • SaaS B2B',
-       'https://inovastartups.com.br/', 'bg-[#fff2b8] text-[#795900]', 'PUBLICADA', NULL
+       90, 'Inscrições abertas · Brasil · Remoto', 'IA • Dados • Automação • SaaS B2B',
+       'https://inovastartups.com.br/edital-inova-6a-edicao.pdf', 'bg-[#fff2b8] text-[#795900]', 'PUBLICADA', NULL
 WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'edital');
 
 INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)

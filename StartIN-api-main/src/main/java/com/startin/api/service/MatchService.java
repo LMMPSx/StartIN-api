@@ -4,6 +4,7 @@ import com.startin.api.dto.ai.AiDailySyncPayloadDTO;
 import com.startin.api.dto.ai.AiMatchItemDTO;
 import com.startin.api.dto.ai.AiMatchResponseDTO;
 import com.startin.api.dto.match.MatchResultDTO;
+import com.startin.api.model.Company;
 import com.startin.api.model.MatchResult;
 import com.startin.api.model.Notification;
 import com.startin.api.model.Opportunity;
@@ -11,6 +12,7 @@ import com.startin.api.model.StartupProfile;
 import com.startin.api.model.enums.MatchStatus;
 import com.startin.api.model.enums.OpportunityStatus;
 import com.startin.api.model.enums.OpportunityType;
+import com.startin.api.repository.CompanyRepository;
 import com.startin.api.repository.MatchResultRepository;
 import com.startin.api.repository.NotificationRepository;
 import com.startin.api.repository.OpportunityRepository;
@@ -32,6 +34,7 @@ public class MatchService {
     private final MatchResultRepository matchResultRepository;
     private final StartupProfileRepository startupProfileRepository;
     private final OpportunityRepository opportunityRepository;
+    private final CompanyRepository companyRepository;
     private final NotificationRepository notificationRepository;
     private final AiIntegrationService aiIntegrationService;
 
@@ -39,11 +42,13 @@ public class MatchService {
             MatchResultRepository matchResultRepository,
             StartupProfileRepository startupProfileRepository,
             OpportunityRepository opportunityRepository,
+            CompanyRepository companyRepository,
             NotificationRepository notificationRepository,
             AiIntegrationService aiIntegrationService) {
         this.matchResultRepository = matchResultRepository;
         this.startupProfileRepository = startupProfileRepository;
         this.opportunityRepository = opportunityRepository;
+        this.companyRepository = companyRepository;
         this.notificationRepository = notificationRepository;
         this.aiIntegrationService = aiIntegrationService;
     }
@@ -294,12 +299,83 @@ public class MatchService {
 
     @Transactional
     public MatchResultDTO updateStatus(Long matchId, String newStatus) {
-        MatchResult match = matchResultRepository.findById(matchId)
-                .orElseThrow(() -> new IllegalArgumentException("Match não encontrado: " + matchId));
+        Optional<MatchResult> byMatchId = matchResultRepository.findById(matchId);
+        MatchResult match = byMatchId.orElseGet(() ->
+                matchResultRepository.findAll().stream()
+                        .filter(m -> m.getOpportunity() != null && Objects.equals(m.getOpportunity().getId(), matchId))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("Match não encontrado: " + matchId))
+        );
 
         match.setStatus(MatchStatus.fromString(newStatus));
         MatchResult saved = matchResultRepository.save(match);
         return MatchResultDTO.fromEntity(saved);
+    }
+
+    @Transactional
+    public void unparticipateInOpportunity(Long startupId, String opportunityIdOrCode, Long matchId, String title) {
+        if (matchId != null) {
+            Optional<MatchResult> byMatchId = matchResultRepository.findById(matchId);
+            if (byMatchId.isPresent()) {
+                MatchResult m = byMatchId.get();
+                m.setStatus(MatchStatus.NOVO);
+                matchResultRepository.save(m);
+            }
+        }
+
+        StartupProfile profile = resolveStartupProfile(startupId);
+        Long targetStartupId = profile != null ? profile.getId() : null;
+
+        List<MatchResult> allMatches = targetStartupId != null
+                ? matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(targetStartupId)
+                : matchResultRepository.findAll();
+
+        for (MatchResult m : allMatches) {
+            boolean matchesId = false;
+            if (opportunityIdOrCode != null && !opportunityIdOrCode.isBlank()) {
+                if (String.valueOf(m.getId()).equals(opportunityIdOrCode)) {
+                    matchesId = true;
+                }
+                if (m.getOpportunity() != null) {
+                    if (String.valueOf(m.getOpportunity().getId()).equals(opportunityIdOrCode) ||
+                        (m.getOpportunity().getCode() != null && m.getOpportunity().getCode().equalsIgnoreCase(opportunityIdOrCode))) {
+                        matchesId = true;
+                    }
+                }
+            }
+            if (title != null && !title.isBlank() && m.getOpportunity() != null &&
+                m.getOpportunity().getTitle() != null &&
+                m.getOpportunity().getTitle().equalsIgnoreCase(title.trim())) {
+                matchesId = true;
+            }
+
+            if (matchesId && m.getStatus() != MatchStatus.NOVO) {
+                m.setStatus(MatchStatus.NOVO);
+                matchResultRepository.save(m);
+            }
+        }
+    }
+
+    public List<Map<String, Object>> getCompanyToStartupsMatches(Long companyId) {
+        Company company = resolveCompany(companyId);
+        List<StartupProfile> startups = startupProfileRepository.findAll();
+        return aiIntegrationService.calculateCompanyToStartupsMatches(company, startups);
+    }
+
+    public List<Map<String, Object>> getStartupToCompaniesMatches(Long startupId) {
+        StartupProfile startup = resolveStartupProfile(startupId);
+        List<Company> companies = companyRepository.findAll();
+        return aiIntegrationService.calculateStartupToCompaniesMatches(startup, companies);
+    }
+
+    private Company resolveCompany(Long companyId) {
+        if (companyId != null) {
+            Optional<Company> byId = companyRepository.findById(companyId);
+            if (byId.isPresent()) return byId.get();
+            Optional<Company> byUser = companyRepository.findByUserId(companyId);
+            if (byUser.isPresent()) return byUser.get();
+        }
+        return companyRepository.findAll().stream().findFirst().orElse(null);
     }
 
     @Transactional

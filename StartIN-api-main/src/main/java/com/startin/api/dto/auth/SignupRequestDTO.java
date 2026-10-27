@@ -16,6 +16,10 @@ public class SignupRequestDTO {
 
     private String name;
 
+    private String phone;
+
+    private String accountType;
+
     public SignupRequestDTO() {
     }
 
@@ -25,6 +29,14 @@ public class SignupRequestDTO {
         this.password = password;
         this.confirm = confirm;
         this.name = name;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
     }
 
     public String getCnpj() {
@@ -65,5 +77,13 @@ public class SignupRequestDTO {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 }

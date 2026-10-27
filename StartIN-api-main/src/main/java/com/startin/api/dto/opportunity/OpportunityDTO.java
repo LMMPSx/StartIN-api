@@ -16,6 +16,8 @@ public class OpportunityDTO {
     private String color;
     private String status;
     private String externalUrl;
+    private Long companyId;
+    private String companyName;
 
     public OpportunityDTO() {
     }
@@ -35,8 +37,17 @@ public class OpportunityDTO {
         dto.setColor(entity.getColor());
         dto.setStatus(entity.getStatus() != null ? entity.getStatus().name() : "PUBLICADA");
         dto.setExternalUrl(entity.getExternalUrl());
+        if (entity.getCompany() != null) {
+            dto.setCompanyId(entity.getCompany().getId());
+            dto.setCompanyName(entity.getCompany().getName());
+        }
         return dto;
     }
+
+    public Long getCompanyId() { return companyId; }
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
+    public String getCompanyName() { return companyName; }
+    public void setCompanyName(String companyName) { this.companyName = companyName; }
 
     // Getters and Setters
     public Long getId() { return id; }

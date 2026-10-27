@@ -31,6 +31,9 @@ public class StartupProfile {
     @Column(length = 30)
     private String cnpj;
 
+    @Column(length = 50)
+    private String phone;
+
     private String website;
 
     @Column(length = 20)
@@ -237,6 +240,8 @@ public class StartupProfile {
     public void setMatchAlerts(Boolean matchAlerts) { this.matchAlerts = matchAlerts; }
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

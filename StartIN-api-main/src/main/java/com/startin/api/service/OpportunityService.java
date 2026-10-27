@@ -5,6 +5,7 @@ import com.startin.api.dto.opportunity.OpportunityDTO;
 import com.startin.api.model.Opportunity;
 import com.startin.api.model.enums.OpportunityStatus;
 import com.startin.api.model.enums.OpportunityType;
+import com.startin.api.repository.CompanyRepository;
 import com.startin.api.repository.OpportunityRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +17,11 @@ import java.util.Optional;
 public class OpportunityService {
 
     private final OpportunityRepository opportunityRepository;
+    private final CompanyRepository companyRepository;
 
-    public OpportunityService(OpportunityRepository opportunityRepository) {
+    public OpportunityService(OpportunityRepository opportunityRepository, CompanyRepository companyRepository) {
         this.opportunityRepository = opportunityRepository;
+        this.companyRepository = companyRepository;
     }
 
     public List<OpportunityDTO> listOpportunities(String type, String query) {
@@ -61,6 +64,10 @@ public class OpportunityService {
         opp.setExternalUrl(dto.getExternalUrl());
         opp.setStatus(OpportunityStatus.PUBLICADA);
         opp.setMatchScore(90);
+
+        if (dto.getCompanyId() != null) {
+            companyRepository.findById(dto.getCompanyId()).ifPresent(opp::setCompany);
+        }
 
         String color = switch (opp.getType()) {
             case EDITAL -> "bg-[#fff2b8] text-[#795900]";

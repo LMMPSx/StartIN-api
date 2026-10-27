@@ -54,6 +54,36 @@ public class MatchController {
         return ResponseEntity.ok(matchService.participateInOpportunity(startupId, oppId));
     }
 
+    @PostMapping("/unparticipate")
+    @Operation(summary = "Remove o interesse/salvamento de uma oportunidade ou match no banco de dados")
+    public ResponseEntity<Map<String, Object>> unparticipate(@RequestBody Map<String, Object> payload) {
+        Long startupId = payload.get("startupId") != null ? Long.valueOf(String.valueOf(payload.get("startupId"))) : null;
+        Long matchId = null;
+        if (payload.get("matchId") != null) {
+            try {
+                matchId = Long.valueOf(String.valueOf(payload.get("matchId")));
+            } catch (NumberFormatException ignored) {}
+        }
+        String oppId = payload.get("opportunityId") != null ? String.valueOf(payload.get("opportunityId")) : null;
+        String title = payload.get("title") != null ? String.valueOf(payload.get("title")) : null;
+        matchService.unparticipateInOpportunity(startupId, oppId, matchId, title);
+        return ResponseEntity.ok(Map.of("removed", true));
+    }
+
+    @GetMapping("/company-startups")
+    @Operation(summary = "Lista todas as startups cadastradas com o match calculado pela IA para a empresa")
+    public ResponseEntity<List<Map<String, Object>>> getCompanyStartupsMatches(
+            @RequestParam(required = false) Long companyId) {
+        return ResponseEntity.ok(matchService.getCompanyToStartupsMatches(companyId));
+    }
+
+    @GetMapping("/startup-companies")
+    @Operation(summary = "Lista todas as empresas cadastradas com o match calculado pela IA para a startup")
+    public ResponseEntity<List<Map<String, Object>>> getStartupCompaniesMatches(
+            @RequestParam(required = false) Long startupId) {
+        return ResponseEntity.ok(matchService.getStartupToCompaniesMatches(startupId));
+    }
+
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualiza o status da conexão (SALVO, INTERESSE_ENVIADO, CONTATO_INICIADO, EM_NEGOCIACAO)")
     public ResponseEntity<MatchResultDTO> updateStatus(

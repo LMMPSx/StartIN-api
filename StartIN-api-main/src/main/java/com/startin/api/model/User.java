@@ -22,6 +22,9 @@ public class User {
 
     private String cnpj;
 
+    @Column(length = 50)
+    private String phone;
+
     @Column(columnDefinition = "LONGTEXT")
     private String avatarUrl;
 
@@ -94,6 +97,14 @@ public class User {
 
     public void setCnpj(String cnpj) {
         this.cnpj = cnpj;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getAvatarUrl() {
