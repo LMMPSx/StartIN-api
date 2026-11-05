@@ -22,6 +22,8 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, Long> 
 
     List<Opportunity> findByCompanyIdOrderByIdDesc(Long companyId);
 
+    List<Opportunity> findByStartupIdOrderByIdDesc(Long startupId);
+
     @Query("SELECT o FROM Opportunity o WHERE " +
            "LOWER(o.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(o.shortDescription) LIKE LOWER(CONCAT('%', :query, '%')) OR " +

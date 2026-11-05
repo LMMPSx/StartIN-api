@@ -1,5 +1,6 @@
 com\startin\api\service\AuthService.class
 com\startin\api\dto\company\CompanyDTO.class
+com\startin\api\controller\ServiceProviderController.class
 com\startin\api\model\ChatMessage.class
 com\startin\api\controller\AuthController.class
 com\startin\api\model\Company.class
@@ -8,12 +9,18 @@ com\startin\api\config\DataInitializer.class
 com\startin\api\repository\ChatMessageRepository.class
 com\startin\api\controller\AiController.class
 com\startin\api\model\Notification.class
+com\startin\api\service\ServiceProviderService.class
 com\startin\api\controller\DashboardController.class
 com\startin\api\dto\ai\AiStartupInputDTO.class
+com\startin\api\service\ServiceConnectionService.class
+com\startin\api\repository\ServiceConnectionRepository.class
 com\startin\api\dto\match\MatchResultDTO.class
 com\startin\api\dto\auth\SignupRequestDTO.class
 com\startin\api\repository\StartupProfileRepository.class
 com\startin\api\dto\auth\LoginRequestDTO.class
+com\startin\api\model\ServiceConnection.class
+com\startin\api\repository\ProviderSavedStartupRepository.class
+com\startin\api\dto\provider\ServiceProviderDTO.class
 com\startin\api\model\User.class
 com\startin\api\service\NotificationService.class
 com\startin\api\config\OpenApiConfig.class
@@ -22,6 +29,7 @@ com\startin\api\model\MatchResult.class
 com\startin\api\dto\ai\AiMatchResponseDTO.class
 com\startin\api\model\enums\OpportunityType.class
 com\startin\api\dto\notification\NotificationDTO.class
+com\startin\api\dto\provider\CreateServiceConnectionDTO.class
 com\startin\api\service\OpportunityService$1.class
 com\startin\api\dto\ai\AiMatchReasonsDTO.class
 com\startin\api\model\Opportunity.class
@@ -32,9 +40,12 @@ com\startin\api\dto\ai\AiOpportunityInputDTO.class
 com\startin\api\repository\OpportunityRepository.class
 com\startin\api\service\AiIntegrationService.class
 com\startin\api\model\enums\UserRole.class
+com\startin\api\model\ServiceProvider.class
 com\startin\api\service\MatchService.class
 com\startin\api\controller\CompanyController.class
 com\startin\api\repository\NotificationRepository.class
+com\startin\api\dto\provider\ServiceConnectionDTO.class
+com\startin\api\repository\ServiceProviderRepository.class
 com\startin\api\model\enums\MatchStatus.class
 com\startin\api\dto\ai\AiDailySyncPayloadDTO$StartupMatchesBatchDTO.class
 com\startin\api\dto\auth\AuthResponseDTO.class
@@ -42,6 +53,7 @@ com\startin\api\dto\opportunity\CreateOpportunityDTO.class
 com\startin\api\repository\UserRepository.class
 com\startin\api\service\MatchService$1.class
 com\startin\api\controller\StartupProfileController.class
+com\startin\api\model\ProviderSavedStartup.class
 com\startin\api\dto\auth\PasswordResetRequestDTO.class
 com\startin\api\dto\opportunity\OpportunityDTO.class
 com\startin\api\dto\startup\MatchingPreferencesDTO.class
@@ -63,6 +75,7 @@ com\startin\api\service\OpportunityService.class
 com\startin\api\dto\match\MatchTriggerRequestDTO.class
 com\startin\api\model\StartupProfile.class
 com\startin\api\service\AiIntegrationService$AuditedCalc.class
+com\startin\api\controller\ServiceConnectionController.class
 com\startin\api\dto\ai\AiDailySyncPayloadDTO.class
 com\startin\api\repository\CompanyRepository.class
 com\startin\api\dto\match\UpdateMatchStatusDTO.class

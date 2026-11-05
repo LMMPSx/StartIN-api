@@ -157,13 +157,17 @@ public class MatchService {
 
     public static boolean isOpportunityCompatibleWithStage(Opportunity opp, String stage) {
         if (opp == null || opp.getType() == null || stage == null || stage.isBlank()) {
-            return true;
+            // Demandas de serviço (lançadas por startups para prestadores) nunca são oportunidades para startups
+            return opp == null || opp.getType() != OpportunityType.SERVICO;
         }
         String norm = stage.trim().toLowerCase()
                 .replace("ç", "c")
                 .replace("ã", "a")
                 .replace("á", "a");
         OpportunityType type = opp.getType();
+        if (type == OpportunityType.SERVICO) {
+            return false;
+        }
         if (norm.contains("tracao")) {
             return type != OpportunityType.POC && type != OpportunityType.PRIMEIRA_COMPRA;
         }
@@ -181,7 +185,12 @@ public class MatchService {
         }
 
         List<MatchResult> existing = matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(profile.getId());
-        long compatibleInDb = opportunityRepository.findAll().stream()
+        List<Opportunity> allOpps = opportunityRepository.findAll();
+        boolean hasEdital = allOpps.stream().anyMatch(o -> o.getType() == OpportunityType.EDITAL);
+        boolean hasEvento = allOpps.stream().anyMatch(o -> o.getType() == OpportunityType.EVENTO);
+        boolean hasEditaisAndEventos = hasEdital && hasEvento;
+
+        long compatibleInDb = allOpps.stream()
                 .filter(o -> isOpportunityCompatibleWithStage(o, profile.getCurrentStage()))
                 .count();
         long compatibleExisting = existing.stream()
@@ -190,8 +199,9 @@ public class MatchService {
         boolean hasLegacyUnauditedRows = existing.stream()
                 .anyMatch(m -> m.getReasonProfile() == null || !m.getReasonProfile().contains("/40"));
 
-        if (existing.isEmpty() || compatibleExisting < compatibleInDb || hasLegacyUnauditedRows) {
-            return recalculateMatches(profile.getId(), existing.isEmpty());
+        if (!hasEditaisAndEventos || existing.isEmpty() || compatibleExisting == 0 || compatibleExisting < compatibleInDb || hasLegacyUnauditedRows) {
+            boolean needLiveScrape = !hasEditaisAndEventos || existing.isEmpty() || compatibleExisting == 0;
+            return recalculateMatches(profile.getId(), needLiveScrape);
         }
 
         return existing.stream()
@@ -340,12 +350,15 @@ public class MatchService {
     }
 
     private String resolveColorForType(OpportunityType oppType) {
+        if (oppType == null) return "bg-[#fff2b8] text-[#795900]";
         return switch (oppType) {
             case EDITAL -> "bg-[#fff2b8] text-[#795900]";
             case POC -> "bg-[#d9f1e5] text-[#16734d]";
             case PRIMEIRA_COMPRA -> "bg-[#fef3c7] text-[#92400e]";
             case EVENTO -> "bg-[#dff1f5] text-[#1e7080]";
             case COMPRA -> "bg-[#ffe1c3] text-[#975524]";
+            case SERVICO -> "bg-[#e0f2fe] text-[#0369a1]";
+            default -> "bg-[#f3f6f8] text-[#111827]";
         };
     }
 

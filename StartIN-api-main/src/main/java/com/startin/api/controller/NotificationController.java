@@ -21,14 +21,15 @@ public class NotificationController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista as notificações integradas de acordo com o perfil (STARTUP ou COMPANY) e aba")
+    @Operation(summary = "Lista as notificações integradas de acordo com o perfil (STARTUP, COMPANY ou PROVIDER) e aba")
     public ResponseEntity<List<NotificationDTO>> list(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String role,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long startupId,
-            @RequestParam(required = false) Long companyId) {
-        return ResponseEntity.ok(notificationService.listForProfile(type, role, userId, startupId, companyId));
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) Long providerId) {
+        return ResponseEntity.ok(notificationService.listForProfile(type, role, userId, startupId, companyId, providerId));
     }
 
     @PutMapping("/{id}/read")
@@ -49,8 +50,9 @@ public class NotificationController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long startupId,
-            @RequestParam(required = false) Long companyId) {
-        notificationService.markAllAsRead(role, userId, startupId, companyId);
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) Long providerId) {
+        notificationService.markAllAsRead(role, userId, startupId, companyId, providerId);
         return ResponseEntity.ok().build();
     }
 }

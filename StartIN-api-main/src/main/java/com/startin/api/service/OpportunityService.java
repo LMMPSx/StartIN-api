@@ -37,15 +37,33 @@ public class OpportunityService {
     }
 
     public List<OpportunityDTO> listOpportunities(String type, String query) {
-        return listOpportunities(type, query, null);
+        return listOpportunities(type, query, null, null);
     }
 
     public List<OpportunityDTO> listOpportunities(String type, String query, Long companyId) {
+        return listOpportunities(type, query, companyId, null);
+    }
+
+    public List<OpportunityDTO> listOpportunities(String type, String query, Long companyId, Long startupId) {
         List<Opportunity> list;
         boolean hasQuery = query != null && !query.isBlank();
         boolean hasType = type != null && !type.isBlank() && !"Todos".equalsIgnoreCase(type);
 
-        if (companyId != null) {
+        if (startupId != null) {
+            list = opportunityRepository.findByStartupIdOrderByIdDesc(startupId);
+            if (hasType) {
+                OpportunityType oppType = OpportunityType.fromString(type);
+                list = list.stream().filter(o -> o.getType() == oppType).toList();
+            }
+            if (hasQuery) {
+                String q = query.trim().toLowerCase();
+                list = list.stream().filter(o ->
+                        (o.getTitle() != null && o.getTitle().toLowerCase().contains(q)) ||
+                        (o.getDescription() != null && o.getDescription().toLowerCase().contains(q)) ||
+                        (o.getTags() != null && o.getTags().toLowerCase().contains(q))
+                ).toList();
+            }
+        } else if (companyId != null) {
             list = opportunityRepository.findByCompanyIdOrderByIdDesc(companyId);
             if (hasType) {
                 OpportunityType oppType = OpportunityType.fromString(type);
@@ -69,6 +87,15 @@ public class OpportunityService {
             list = opportunityRepository.search(query);
         } else {
             list = opportunityRepository.findAll();
+        }
+
+        // Listagem geral (sem dono informado): demandas de serviço de startups só aparecem
+        // quando solicitadas explicitamente pelo tipo SERVICO (ex.: prestadores explorando demandas).
+        if (startupId == null && companyId == null) {
+            boolean explicitServico = hasType && OpportunityType.fromString(type) == OpportunityType.SERVICO;
+            if (!explicitServico) {
+                list = list.stream().filter(o -> o.getType() != OpportunityType.SERVICO).toList();
+            }
         }
 
         return list.stream().map(OpportunityDTO::fromEntity).toList();
@@ -97,6 +124,12 @@ public class OpportunityService {
 
         if (dto.getCompanyId() != null) {
             companyRepository.findById(dto.getCompanyId()).ifPresent(opp::setCompany);
+        }
+        if (dto.getStartupId() != null) {
+            startupProfileRepository.findById(dto.getStartupId()).ifPresent(opp::setStartup);
+        }
+        if (dto.getTargetCategory() != null) {
+            opp.setTargetCategory(dto.getTargetCategory());
         }
 
         opp.setColor(resolveColor(opp.getType()));
@@ -178,8 +211,22 @@ public class OpportunityService {
                 throw new IllegalArgumentException("Acesso negado: você não tem permissão para alterar oportunidades de outra empresa.");
             }
         }
-        if (opp.getCompany() == null && dto.getCompanyId() != null) {
+        if (opp.getCompany() == null && opp.getStartup() == null && dto.getCompanyId() != null) {
             companyRepository.findById(dto.getCompanyId()).ifPresent(opp::setCompany);
+        }
+
+        // Validação de segurança: garantir que a startup só edite as próprias oportunidades/demandas
+        // (exige o startupId do dono; requisição sem startupId não pode alterar demanda de startup)
+        if (opp.getStartup() != null) {
+            if (dto.getStartupId() == null || !opp.getStartup().getId().equals(dto.getStartupId())) {
+                throw new IllegalArgumentException("Acesso negado: você não tem permissão para alterar demandas de outra startup.");
+            }
+        }
+        if (opp.getStartup() == null && opp.getCompany() == null && dto.getStartupId() != null) {
+            startupProfileRepository.findById(dto.getStartupId()).ifPresent(opp::setStartup);
+        }
+        if (dto.getTargetCategory() != null) {
+            opp.setTargetCategory(dto.getTargetCategory());
         }
 
         Opportunity saved = opportunityRepository.save(opp);
@@ -223,6 +270,8 @@ public class OpportunityService {
             case COMPRA -> "Compra";
             case EVENTO -> "Evento";
             case EDITAL -> "Edital";
+            case SERVICO -> "Demanda de Serviço";
+            default -> "Oportunidade";
         };
     }
 
@@ -234,6 +283,8 @@ public class OpportunityService {
             case PRIMEIRA_COMPRA -> "bg-[#fef3c7] text-[#92400e]";
             case EVENTO -> "bg-[#dff1f5] text-[#1e7080]";
             case COMPRA -> "bg-[#ffe1c3] text-[#975524]";
+            case SERVICO -> "bg-[#e0f2fe] text-[#0369a1]";
+            default -> "bg-[#f3f6f8] text-[#111827]";
         };
     }
 }

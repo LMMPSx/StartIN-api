@@ -16,10 +16,18 @@ public class CreateOpportunityDTO {
     private String meta;
     private String externalUrl;
     private Long companyId;
+    private Long startupId;
+    private String targetCategory;
     private String status;
 
     public CreateOpportunityDTO() {
     }
+
+    public Long getStartupId() { return startupId; }
+    public void setStartupId(Long startupId) { this.startupId = startupId; }
+
+    public String getTargetCategory() { return targetCategory; }
+    public void setTargetCategory(String targetCategory) { this.targetCategory = targetCategory; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

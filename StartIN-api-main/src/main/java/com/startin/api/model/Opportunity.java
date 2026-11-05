@@ -16,7 +16,7 @@ public class Opportunity {
     private String code; // ex: "edital", "poc", "evento", "compra"
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     private OpportunityType type = OpportunityType.EDITAL;
 
     @Column(nullable = false)
@@ -35,12 +35,18 @@ public class Opportunity {
     private String color;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     private OpportunityStatus status = OpportunityStatus.PUBLICADA;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "company_id")
     private Company company;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "startup_id")
+    private StartupProfile startup;
+
+    private String targetCategory;
 
     private LocalDateTime createdAt;
 
@@ -172,6 +178,22 @@ public class Opportunity {
 
     public void setCompany(Company company) {
         this.company = company;
+    }
+
+    public StartupProfile getStartup() {
+        return startup;
+    }
+
+    public void setStartup(StartupProfile startup) {
+        this.startup = startup;
+    }
+
+    public String getTargetCategory() {
+        return targetCategory;
+    }
+
+    public void setTargetCategory(String targetCategory) {
+        this.targetCategory = targetCategory;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -32,7 +32,10 @@ public class StartupProfileService {
     }
 
     public Optional<StartupProfileDTO> getProfile(Long id) {
-        return startupProfileRepository.findById(id).map(StartupProfileDTO::fromEntity);
+        if (id == null) return Optional.empty();
+        return startupProfileRepository.findById(id)
+                .or(() -> startupProfileRepository.findByUserId(id))
+                .map(StartupProfileDTO::fromEntity);
     }
 
     public Optional<StartupProfileDTO> getProfileByUserId(Long userId) {
@@ -49,6 +52,8 @@ public class StartupProfileService {
     @Transactional
     public StartupProfileDTO updateProfile(Long id, StartupProfileDTO dto) {
         StartupProfile profile = startupProfileRepository.findById(id)
+                .or(() -> startupProfileRepository.findByUserId(id))
+                .or(() -> dto.getUserId() != null ? startupProfileRepository.findByUserId(dto.getUserId()) : Optional.empty())
                 .orElseGet(() -> startupProfileRepository.findAll().stream().findFirst()
                         .orElseGet(() -> {
                             StartupProfile p = new StartupProfile();
@@ -75,6 +80,7 @@ public class StartupProfileService {
     @Transactional
     public StartupProfileDTO updatePreferences(Long id, MatchingPreferencesDTO prefs) {
         StartupProfile profile = startupProfileRepository.findById(id)
+                .or(() -> startupProfileRepository.findByUserId(id))
                 .orElseGet(() -> startupProfileRepository.findAll().stream().findFirst()
                         .orElseThrow(() -> new IllegalArgumentException("Perfil de startup não encontrado: " + id)));
 

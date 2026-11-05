@@ -29,7 +29,7 @@ public class User {
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     private UserRole role = UserRole.USER;
 
     private LocalDateTime createdAt;

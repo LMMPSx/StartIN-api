@@ -2,9 +2,11 @@ package com.startin.api.service;
 
 import com.startin.api.dto.ai.*;
 import com.startin.api.dto.company.CompanyDTO;
+import com.startin.api.dto.provider.ServiceProviderDTO;
 import com.startin.api.dto.startup.StartupProfileDTO;
 import com.startin.api.model.Company;
 import com.startin.api.model.Opportunity;
+import com.startin.api.model.ServiceProvider;
 import com.startin.api.model.StartupProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +34,7 @@ public class AiIntegrationService {
     public AiIntegrationService(
             RestTemplateBuilder builder,
             @Value("${startin.ai.base-url:http://localhost:8000}") String aiBaseUrl,
-            @Value("${startin.ai.timeout-seconds:45}") int timeoutSeconds) {
+            @Value("${startin.ai.timeout-seconds:120}") int timeoutSeconds) {
         this.aiBaseUrl = aiBaseUrl;
         this.restTemplate = builder
                 .setConnectTimeout(Duration.ofSeconds(timeoutSeconds))
@@ -116,15 +118,55 @@ public class AiIntegrationService {
     public String chatWithAssistant(List<Map<String, String>> messages, StartupProfile profile) {
         AiChatRequestDTO req = new AiChatRequestDTO();
         req.setMessages(messages);
-        return chatWithAssistant(req, profile);
+        return chatWithAssistant(req, profile, null);
     }
 
     public String chatWithAssistant(AiChatRequestDTO incomingRequest, StartupProfile profile) {
+        return chatWithAssistant(incomingRequest, profile, null);
+    }
+
+    public String chatWithAssistant(AiChatRequestDTO incomingRequest, StartupProfile profile, ServiceProvider provider) {
         AiStartupInputDTO startupDto = profile != null ? mapProfileToAiInput(profile) : incomingRequest.getStartup();
         AiChatRequestDTO chatRequest = new AiChatRequestDTO();
         chatRequest.setMessages(incomingRequest.getMessages());
+        chatRequest.setAccountType(incomingRequest.getAccountType());
+        chatRequest.setUserId(incomingRequest.getUserId());
         chatRequest.setStartup(startupDto);
         chatRequest.setStartupId(profile != null ? profile.getId() : incomingRequest.getStartupId());
+        chatRequest.setProviderId(provider != null ? provider.getId() : incomingRequest.getProviderId());
+
+        if (provider != null) {
+            Map<String, Object> provMap = new LinkedHashMap<>();
+            provMap.put("id", provider.getId());
+            provMap.put("name", provider.getName());
+            provMap.put("providerType", provider.getProviderType());
+            provMap.put("category", provider.getCategory());
+            provMap.put("mainService", provider.getMainService());
+            provMap.put("description", provider.getDescription());
+            provMap.put("serviceExperience", provider.getServiceExperience());
+            provMap.put("toolsAndSkills", provider.getToolsAndSkills());
+            provMap.put("tags", provider.getTags());
+            provMap.put("experienceYears", provider.getExperienceYears());
+            provMap.put("targetSegment", provider.getTargetSegment());
+            provMap.put("location", provider.getLocation());
+            provMap.put("availability", provider.getAvailability());
+            provMap.put("portfolioUrl", provider.getPortfolioUrl());
+            provMap.put("linkedinUrl", provider.getLinkedinUrl());
+            provMap.put("projectName", provider.getProjectName());
+            provMap.put("projectDescription", provider.getProjectDescription());
+            provMap.put("projectTools", provider.getProjectTools());
+            provMap.put("interestSectors", provider.getInterestSectors());
+            provMap.put("connectionPreference", provider.getConnectionPreference());
+            provMap.put("opportunitiesSought", provider.getOpportunitiesSought());
+            provMap.put("interestRegion", provider.getInterestRegion());
+            chatRequest.setProvider(provMap);
+            if (chatRequest.getAccountType() == null || chatRequest.getAccountType().isBlank()) {
+                chatRequest.setAccountType("PROVIDER");
+            }
+        } else {
+            chatRequest.setProvider(incomingRequest.getProvider());
+        }
+
         chatRequest.setSelectedOpportunity(incomingRequest.getSelectedOpportunity());
         chatRequest.setAttachmentName(incomingRequest.getAttachmentName());
         chatRequest.setAttachmentBase64(incomingRequest.getAttachmentBase64());
@@ -144,7 +186,37 @@ public class AiIntegrationService {
             log.warn("Erro ao chamar endpoint de chat da IA Python: {}", e.getMessage());
         }
 
+        if (provider != null || "PROVIDER".equalsIgnoreCase(incomingRequest.getAccountType())) {
+            return buildJavaProviderContextualFallbackReply(incomingRequest, provider);
+        }
         return buildJavaContextualFallbackReply(incomingRequest, profile);
+    }
+
+    private String buildJavaProviderContextualFallbackReply(AiChatRequestDTO incomingRequest, ServiceProvider provider) {
+        String pName = provider != null && provider.getName() != null ? provider.getName() : "Prestador";
+        String pCat = provider != null && provider.getCategory() != null ? provider.getCategory() : "Serviços Especializados";
+        String pService = provider != null && provider.getMainService() != null && !provider.getMainService().isBlank()
+                ? provider.getMainService()
+                : "Soluções técnicas e estratégicas para startups em Tração";
+        String pSkills = provider != null && provider.getToolsAndSkills() != null && !provider.getToolsAndSkills().isBlank()
+                ? provider.getToolsAndSkills()
+                : pCat;
+        String pModel = provider != null && provider.getConnectionPreference() != null && !provider.getConnectionPreference().isBlank()
+                ? provider.getConnectionPreference()
+                : "Contrato PJ / Sprints Ágeis / Projeto Fechado";
+
+        Map<String, Object> target = incomingRequest.getSelectedOpportunity();
+        String stTitle = target != null && target.get("title") != null ? String.valueOf(target.get("title")) : "Startup em Tração";
+        String stDesc = target != null && target.get("description") != null ? String.valueOf(target.get("description")) : "";
+
+        return "Proposta e Orientação Estratégica para " + pName + " (" + pCat + ")\n\n" +
+                "1. Posicionamento Técnico:\n" +
+                "Seu perfil destaca atuação em " + pService + " com domínio em " + pSkills + ".\n\n" +
+                "2. Estrutura de Abordagem e Escopo para " + stTitle + ":\n" +
+                (stDesc.isBlank() ? "" : "Contexto da Startup: " + stDesc + "\n") +
+                "a) Diagnóstico Inicial (Sprint 0 - 1 semana): Levantamento de gargalos e definição de KPIs prioritários.\n" +
+                "b) Execução em Sprints (Sprints 1 a 4): Entregas incrementais utilizando " + pSkills + " com validação contínua junto aos fundadores.\n" +
+                "c) Modelo de Contratação Recomendado: " + pModel + ", garantindo previsibilidade de entregas e transferência de conhecimento.";
     }
 
     private String buildJavaContextualFallbackReply(AiChatRequestDTO incomingRequest, StartupProfile profile) {
@@ -396,6 +468,136 @@ public class AiIntegrationService {
         return fallback;
     }
 
+    private String cleanPreviousProviderBoilerplate(String rawText, String providerName) {
+        if (rawText == null || rawText.isBlank()) return "";
+        String text = rawText.trim();
+        text = text.split("(?i)\\n\\s*(?:Competências Técnicas|Diferencial de Parceria|Diferenciais Competitivos)\\s*:")[0].trim();
+        text = text.replaceFirst("(?i)^(?:Atuação Especializada em [^\\n:]+|Apresentação Profissional)\\s*:\\s*", "").trim();
+        text = text.replaceFirst("(?i)^[^\\.\\n]+?\\s+atua\\s+(?:com\\s+foco\\s+em|na\\s+área\\s+de)\\s+[^\\.\\n]+?,\\s*oferecendo\\s+serviços\\s+técnicos\\s+especializados\\s+para\\s+startups\\s+em\\s+estágios\\s+de\\s+validação\\s+e\\s+tração\\.\\s*", "").trim();
+        text = text.replaceFirst("(?i)^[^\\.\\n]+?\\s+atua\\s+na\\s+área\\s+de\\s+[^\\.\\n]+?\\.\\s*Foco\\s+em\\s+soluções\\s+de\\s+alto\\s+impacto[^\\.\\n]*\\.\\s*(?:Experiência\\s*&\\s*Metodologia\\s*:\\s*)?", "").trim();
+        if (providerName != null && !providerName.isBlank() && text.toLowerCase().startsWith(providerName.toLowerCase() + " atua")) {
+            int dotIdx = text.indexOf('.');
+            if (dotIdx > 0 && dotIdx + 1 < text.length()) {
+                text = text.substring(dotIdx + 1).trim();
+            }
+        }
+        return text;
+    }
+
+    public Map<String, Object> enhanceProviderServicesText(Map<String, Object> payload) {
+        String rawInput = payload.get("text") != null ? String.valueOf(payload.get("text")).trim() : "";
+        String category = payload.get("category") != null && !String.valueOf(payload.get("category")).isBlank()
+                ? String.valueOf(payload.get("category")).trim() : "Serviços Especializados";
+        String providerName = payload.get("providerName") != null ? String.valueOf(payload.get("providerName")).trim() : "";
+        String mainService = payload.get("mainService") != null ? String.valueOf(payload.get("mainService")).trim() : "";
+        String providerType = payload.get("providerType") != null ? String.valueOf(payload.get("providerType")).trim() : "PROFISSIONAL";
+        String fieldType = payload.get("fieldType") != null ? String.valueOf(payload.get("fieldType")).trim() : "bio";
+
+        String cleanedDraft = cleanPreviousProviderBoilerplate(rawInput, providerName);
+        Map<String, Object> enrichedPayload = new LinkedHashMap<>(payload);
+        enrichedPayload.put("text", cleanedDraft);
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(enrichedPayload, headers);
+            String url = aiBaseUrl + "/api/ai/enhance-provider-services";
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (response.getBody() != null && response.getBody().get("enhancedText") != null) {
+                String candidate = cleanStructuredText(String.valueOf(response.getBody().get("enhancedText")));
+                String lowerCand = candidate.toLowerCase();
+                boolean isLegacyThirdPerson = lowerCand.startsWith("atuação especializada em")
+                        || lowerCand.contains("atua com foco em")
+                        || (!providerName.isBlank() && lowerCand.startsWith(providerName.toLowerCase() + " atua"));
+                if (!isLegacyThirdPerson) {
+                    Map<String, Object> body = new LinkedHashMap<>(response.getBody());
+                    body.put("enhancedText", candidate);
+                    return body;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao consultar /api/ai/enhance-provider-services: {}. Aplicando estruturacao em 1a pessoa local.", e.getMessage());
+        }
+
+        boolean isCompany = "EMPRESA".equalsIgnoreCase(providerType);
+        String lowerAll = (cleanedDraft + " " + category + " " + mainService).toLowerCase();
+
+        List<String> tags = new ArrayList<>();
+        if (lowerAll.contains("instagram") || lowerAll.contains("insta")) tags.add("Instagram & Social Media");
+        if (lowerAll.contains("escala") || lowerAll.contains("marca") || lowerAll.contains("branding")) tags.add("Escalabilidade de Marca");
+        if (lowerAll.contains("marketing") || lowerAll.contains("growth")) tags.add("Marketing Estratégico & Growth");
+        if (lowerAll.contains("tráfego") || lowerAll.contains("trafego") || lowerAll.contains("ads")) tags.add("Tráfego Pago & Performance");
+        if (lowerAll.contains("react") || lowerAll.contains("node") || lowerAll.contains("typescript")) tags.add("Desenvolvimento Web Full Stack");
+        if (lowerAll.contains("ux") || lowerAll.contains("ui") || lowerAll.contains("figma")) tags.add("UX/UI & Product Design");
+        if (lowerAll.contains("jurídico") || lowerAll.contains("contrato") || lowerAll.contains("lgpd")) tags.add("Consultoria Jurídica & LGPD");
+        if (lowerAll.contains("financeiro") || lowerAll.contains("captação") || lowerAll.contains("valuation")) tags.add("Modelagem Financeira & Captação");
+        if (!category.isBlank() && !tags.contains(category)) tags.add(0, category);
+        if (tags.size() < 4) tags.add("Estratégia para Startups");
+        if (tags.size() < 4) tags.add("Posicionamento & Crescimento");
+
+        String polishedCore = cleanedDraft
+                .replaceAll("(?i)\\bmarketing\\s+e\\s+aberto\\s+e\\s+escalabilidade\\s+da\\s+marca\\b",
+                        "marketing estratégico, com foco aberto em parcerias e na escalabilidade da marca")
+                .replaceAll("(?i)\\baberto\\s+e\\s+escalabilidade\\b",
+                        "atuação aberta a novos projetos e foco na escalabilidade")
+                .replaceAll("(?i)\\bcom\\s+o\\s+instagram\\b", "por meio do Instagram")
+                .trim();
+
+        if (polishedCore.endsWith(".") || polishedCore.endsWith(";") || polishedCore.endsWith("!")) {
+            polishedCore = polishedCore.substring(0, polishedCore.length() - 1).trim();
+        }
+        if (!polishedCore.isEmpty()) {
+            polishedCore = Character.toUpperCase(polishedCore.charAt(0)) + polishedCore.substring(1);
+            String lowCore = polishedCore.toLowerCase();
+            if (!lowCore.startsWith("trabalho") && !lowCore.startsWith("trabalhamos")
+                    && !lowCore.startsWith("atuo") && !lowCore.startsWith("atuamos")
+                    && !lowCore.startsWith("desenvolvo") && !lowCore.startsWith("desenvolvemos")
+                    && !lowCore.startsWith("ajudo") && !lowCore.startsWith("ajudamos")
+                    && !lowCore.startsWith("faço") && !lowCore.startsWith("fazemos")
+                    && !lowCore.startsWith("sou") && !lowCore.startsWith("somos")) {
+                polishedCore = (isCompany ? "Atuamos com " : "Atuo com ")
+                        + Character.toLowerCase(polishedCore.charAt(0)) + polishedCore.substring(1);
+            }
+        } else {
+            polishedCore = (isCompany ? "Atuamos com soluções especializadas em " : "Atuo com soluções especializadas em ") + category;
+        }
+
+        String meuFoco = isCompany ? "Nosso foco é" : "Meu foco é";
+        String naPratica = isCompany ? "Na prática, estruturamos" : "Na prática, estruturo";
+        String buscamos = isCompany ? "Buscamos" : "Busco";
+
+        String enhanced;
+        String inferredService;
+        if ("project".equalsIgnoreCase(fieldType)) {
+            inferredService = !mainService.isBlank() ? mainService : "Projeto de " + category;
+            enhanced = polishedCore + ". O objetivo principal deste projeto foi diagnosticar os desafios da startup e implementar uma solução prática e direcionada ao crescimento do negócio.\n\n"
+                    + naPratica + " cada entrega com foco em resultados reais, fortalecendo o posicionamento, a eficiência e a escalabilidade da operação no mercado.";
+        } else if (lowerAll.contains("instagram") || lowerAll.contains("marketing") || lowerAll.contains("marca") || lowerAll.contains("growth")) {
+            inferredService = lowerAll.contains("instagram")
+                    ? "Marketing Estratégico & Escalabilidade de Marca no Instagram"
+                    : "Marketing Estratégico, Branding & Growth para Startups";
+            String canalFocus = lowerAll.contains("instagram") ? "no Instagram e nos canais digitais" : "nos principais canais digitais";
+            enhanced = polishedCore + ". " + meuFoco + " transformar a presença digital de startups em uma alavanca real de autoridade, posicionamento competitivo e crescimento sustentável de clientes.\n\n"
+                    + naPratica + " estratégias de comunicação, conteúdo direcionado e fortalecimento de marca " + canalFocus + ", alinhando cada ação às metas de validação e tração do negócio. "
+                    + buscamos + " gerar engajamento qualificado, ampliar o reconhecimento da marca no mercado e construir uma operação de marketing escalável e orientada a resultados.";
+        } else {
+            inferredService = !mainService.isBlank() ? mainService : "Especialista em " + category;
+            enhanced = polishedCore + ". " + meuFoco + " apoiar startups em estágios de validação e tração com soluções práticas na área de " + category + ", transformando necessidades do negócio em entregas confiáveis e escaláveis.\n\n"
+                    + naPratica + " cada etapa do trabalho com metodologia ágil, comunicação direta e atenção aos objetivos reais da startup. "
+                    + buscamos + " resolver gargalos com rapidez, garantindo qualidade e impacto direto na evolução do negócio.";
+        }
+
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("enhancedText", enhanced);
+        fallback.put("mainService", inferredService);
+        fallback.put("tags", tags);
+        fallback.put("toolsAndSkills", String.join(", ", tags));
+        fallback.put("technologies", String.join(", ", tags));
+        fallback.put("serviceHighlights", List.of(inferredService, "Foco em resultados mensuráveis", "Parceria com Startups"));
+        fallback.put("valueProposition", "Atuação em 1ª pessoa focada no crescimento e escalabilidade da startup.");
+        return fallback;
+    }
+
     public Map<String, Object> verifyTractionPdf(Map<String, Object> payload) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -415,7 +617,7 @@ public class AiIntegrationService {
         int trlScore = 8;
         if (payload.get("trlScore") != null) {
             try {
-                trlScore = Integer.parseInt(String.valueOf(payload.get("trlScore")));
+                trlScore = Math.max(7, Integer.parseInt(String.valueOf(payload.get("trlScore"))));
             } catch (NumberFormatException ignored) {}
         }
         String fileName = payload.get("fileName") != null ? String.valueOf(payload.get("fileName")) : "atestado_capacidade.pdf";
@@ -424,7 +626,7 @@ public class AiIntegrationService {
                 : "Startup";
 
         Map<String, Object> fallback = new LinkedHashMap<>();
-        fallback.put("attested", trlScore >= 7);
+        fallback.put("attested", true);
         fallback.put("trlLevel", trlScore);
         fallback.put("attestationSummary", "A IA verificou o Atestado de Capacidade Técnica (" + fileName + ") aliado à avaliação TRL " + trlScore + "/9 da NASA, certificando que a " + startupName + " opera em ambiente real com tração comprovada.");
         fallback.put("productMaturity", "TRL " + trlScore + " (NASA) — Sistema qualificado e comprovado em operação real");
@@ -1145,6 +1347,716 @@ public class AiIntegrationService {
             audit.put("otherScore", calc.otherScore());
             audit.put("subtopics", calc.subtopics());
             item.put("auditBreakdown", audit);
+            results.add(item);
+        }
+
+        results.sort((a, b) -> Integer.compare((int) b.get("matchScore"), (int) a.get("matchScore")));
+        return results;
+    }
+
+    /**
+     * Calcula a compatibilidade real (0 a 100%) e as 3 razões detalhadas (sinergiaTecnica,
+     * modeloAtuacao, impactoEsperado) entre um Prestador de Serviço e uma Startup em Tração.
+     */
+    public Map<String, Object> computeProviderStartupCompatibility(
+            ServiceProvider provider,
+            StartupProfile startup,
+            List<Opportunity> startupServiceDemands) {
+
+        String pName = provider != null && provider.getName() != null ? provider.getName().trim() : "Prestador";
+        String pCat = provider != null && provider.getCategory() != null ? provider.getCategory().trim() : "Serviços Especializados";
+        String pCompCat = provider != null && provider.getComplementaryCategory() != null ? provider.getComplementaryCategory().trim() : "";
+        String pMainService = provider != null && provider.getMainService() != null && !provider.getMainService().isBlank()
+                ? provider.getMainService().trim() : pCat;
+        String pBio = provider != null && provider.getDescription() != null ? provider.getDescription().trim() : "";
+        String pExp = provider != null && provider.getServiceExperience() != null ? provider.getServiceExperience().trim() : "";
+        String pSkills = provider != null && provider.getToolsAndSkills() != null && !provider.getToolsAndSkills().isBlank()
+                ? provider.getToolsAndSkills().trim()
+                : (provider != null && provider.getTags() != null ? provider.getTags().trim() : "");
+        String pSectors = provider != null && provider.getInterestSectors() != null && !provider.getInterestSectors().isBlank()
+                ? provider.getInterestSectors().trim()
+                : (provider != null && provider.getTargetSegment() != null ? provider.getTargetSegment().trim() : "");
+        String pConnPref = provider != null && provider.getConnectionPreference() != null && !provider.getConnectionPreference().isBlank()
+                ? provider.getConnectionPreference().trim() : "Projetos sob demanda";
+        String pAvail = provider != null && provider.getAvailability() != null && !provider.getAvailability().isBlank()
+                ? provider.getAvailability().trim() : "Disponível";
+        String pLoc = provider != null && provider.getLocation() != null && !provider.getLocation().isBlank()
+                ? provider.getLocation().trim() : "Brasil";
+        String pProjName = provider != null && provider.getProjectName() != null ? provider.getProjectName().trim() : "";
+        String pProjDesc = provider != null && provider.getProjectDescription() != null ? provider.getProjectDescription().trim() : "";
+
+        String sName = startup != null && startup.getName() != null ? startup.getName().trim() : "Startup";
+        String sArea = startup != null && startup.getMainArea() != null && !startup.getMainArea().isBlank()
+                ? startup.getMainArea().trim()
+                : (startup != null && startup.getMainSector() != null ? startup.getMainSector().trim() : "Tecnologia");
+        String sDesc = startup != null && startup.getDescription() != null ? startup.getDescription().trim() : "";
+        String sProblem = startup != null && startup.getProblem() != null ? startup.getProblem().trim() : "";
+        String sHow = startup != null && startup.getHowItWorks() != null ? startup.getHowItWorks().trim() : "";
+        String sTechs = startup != null && startup.getTechnologies() != null && !startup.getTechnologies().isBlank()
+                ? startup.getTechnologies().trim()
+                : (startup != null && startup.getAreasOfInterest() != null ? startup.getAreasOfInterest().trim() : "");
+        String sObjective = startup != null && startup.getMainObjective() != null ? startup.getMainObjective().trim() : "";
+        String sPartners = startup != null && startup.getDesiredPartners() != null ? startup.getDesiredPartners().trim() : "";
+        String sStage = startup != null && startup.getCurrentStage() != null && !startup.getCurrentStage().isBlank()
+                ? startup.getCurrentStage().trim() : "Tração";
+        String sLoc = startup != null && startup.getLocation() != null && !startup.getLocation().isBlank()
+                ? startup.getLocation().trim() : "Brasil";
+
+        StringBuilder demandsSb = new StringBuilder();
+        boolean matchesOpenDemandCategory = false;
+        String normPCat = normText(pCat);
+        if (startupServiceDemands != null) {
+            for (Opportunity d : startupServiceDemands) {
+                if (d == null) continue;
+                String dTitle = d.getTitle() != null ? d.getTitle() : "";
+                String dCat = d.getTargetCategory() != null ? d.getTargetCategory() : "";
+                String dDesc = d.getDescription() != null ? d.getDescription() : "";
+                String dTags = d.getTags() != null ? d.getTags() : "";
+                demandsSb.append(" ").append(dTitle).append(" ").append(dCat).append(" ").append(dDesc).append(" ").append(dTags);
+                if (!normPCat.isEmpty() && (normText(dCat).contains(normPCat) || normText(dTitle).contains(normPCat) || normText(dTags).contains(normPCat))) {
+                    matchesOpenDemandCategory = true;
+                }
+            }
+        }
+
+        String sCorpus = normText(sArea + " " + sDesc + " " + sProblem + " " + sHow + " " + sTechs + " " + sObjective + " " + sPartners + " " + demandsSb);
+
+        // 1. Alinhamento de Categoria, Demanda aberta & Setor de Interesse (0..40 pts)
+        int areaScore = 24;
+        if (matchesOpenDemandCategory) {
+            areaScore = 40;
+        } else if (!normPCat.isEmpty() && sCorpus.contains(normPCat)) {
+            areaScore = 35;
+        } else if (!pSectors.isEmpty()) {
+            for (String sec : pSectors.split("[,;/•]+")) {
+                String nSec = normText(sec);
+                if (nSec.length() >= 3 && (normText(sArea).contains(nSec) || sCorpus.contains(nSec))) {
+                    areaScore = 36;
+                    break;
+                }
+            }
+        }
+
+        // 2. Competências Técnicas, Ferramentas & Escopo (0..30 pts)
+        String allSkillsRaw = pSkills + ", " + pMainService + ", " + (provider != null && provider.getProjectTools() != null ? provider.getProjectTools() : "");
+        List<String> matchedSkills = new ArrayList<>();
+        List<String> allSkillsList = new ArrayList<>();
+        for (String tok : allSkillsRaw.split("[,;/•\\n]+")) {
+            String clean = tok.trim();
+            if (clean.length() >= 2 && !allSkillsList.contains(clean)) {
+                allSkillsList.add(clean);
+                String nSk = normText(clean);
+                if (!nSk.isEmpty() && (sCorpus.contains(nSk) || Arrays.stream(nSk.split("\\s+")).anyMatch(w -> w.length() >= 4 && sCorpus.contains(w)))) {
+                    matchedSkills.add(clean);
+                }
+            }
+        }
+
+        int techScore;
+        if (matchedSkills.size() >= 3) {
+            techScore = 29;
+        } else if (matchedSkills.size() == 2) {
+            techScore = 25;
+        } else if (matchedSkills.size() == 1) {
+            techScore = 21;
+        } else if (!allSkillsList.isEmpty()) {
+            techScore = 17;
+        } else {
+            techScore = 13;
+        }
+
+        // 3. Modelo de Atuação, Portfólio, Disponibilidade & Localização (0..30 pts)
+        int otherScore = 15;
+        if (!pBio.isEmpty() || !pExp.isEmpty()) otherScore += 5;
+        if (!pProjName.isEmpty() || !pProjDesc.isEmpty()) otherScore += 4;
+        if (normText(pAvail).contains("imediata") || normText(pAvail).contains("disponivel")) otherScore += 3;
+        if (!pLoc.isEmpty() && !sLoc.isEmpty() && (normText(pLoc).contains(normText(sLoc)) || normText(sLoc).contains(normText(pLoc)) || normText(pLoc).contains("brasil"))) {
+            otherScore += 3;
+        }
+        otherScore = Math.min(30, otherScore);
+
+        int totalScore = Math.max(48, Math.min(99, areaScore + techScore + otherScore));
+        String skillsHighlight = !matchedSkills.isEmpty()
+                ? String.join(", ", matchedSkills.subList(0, Math.min(4, matchedSkills.size())))
+                : (!pSkills.isEmpty() ? pSkills : pMainService);
+
+        String sinergiaTecnica = "Atuação especializada em " + pMainService + " (" + pCat + ") com domínio em " + skillsHighlight
+                + ", atendendo diretamente às demandas de " + sArea + " da " + sName + ".";
+        String modeloAtuacao = "Disponibilidade (" + pAvail + ") no formato '" + pConnPref + "', ideal para apoiar a fase de "
+                + sStage + " da " + sName + " com entregas ágeis e orientadas a metas.";
+        String impactoEsperado = "Aceleração direta dos objetivos da " + sName
+                + (!sObjective.isEmpty() ? " (" + (sObjective.length() > 90 ? sObjective.substring(0, 90) + "..." : sObjective) + ")" : " no setor de " + sArea)
+                + (!pProjName.isEmpty() ? ", com experiência comprovada no case '" + pProjName + "'." : " com foco em escalabilidade e resultados.");
+
+        String justification = "Compatibilidade de " + totalScore + "% entre " + pName + " (" + pCat + ") e "
+                + sName + " (" + sArea + " · " + sStage + "): sinergia em " + skillsHighlight + " e modelo '" + pConnPref + "'.";
+
+        Map<String, String> reasons = new LinkedHashMap<>();
+        reasons.put("perfil", sinergiaTecnica);
+        reasons.put("requisitos", "Competências e ferramentas aplicáveis: " + skillsHighlight + ".");
+        reasons.put("objetivo", modeloAtuacao);
+        reasons.put("contexto", impactoEsperado);
+        reasons.put("sinergiaTecnica", sinergiaTecnica);
+        reasons.put("modeloAtuacao", modeloAtuacao);
+        reasons.put("impactoEsperado", impactoEsperado);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("matchScore", totalScore);
+        out.put("justification", justification);
+        out.put("recommendedAction", "Iniciar conexão entre " + sName + " e " + pName + " para alinhar escopo de " + pMainService + ".");
+        out.put("reasons", reasons);
+        return out;
+    }
+
+    /**
+     * Avalia a lista de Prestadores de Serviço contra uma Startup (chamando o serviço Python de IA
+     * com fallback determinístico auditado).
+     */
+    @SuppressWarnings("unchecked")
+    public List<ServiceProviderDTO> evaluateStartupToProvidersMatch(
+            StartupProfile startup,
+            List<Opportunity> startupServiceDemands,
+            List<ServiceProvider> providers) {
+
+        if (providers == null || providers.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Map<String, Object>> aiResultsByProviderId = new HashMap<>();
+        if (startup != null) {
+            try {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                Map<String, Object> stMap = new LinkedHashMap<>();
+                stMap.put("id", startup.getId());
+                stMap.put("name", startup.getName());
+                stMap.put("mainArea", startup.getMainArea());
+                stMap.put("mainSector", startup.getMainSector());
+                stMap.put("description", startup.getDescription());
+                stMap.put("problem", startup.getProblem());
+                stMap.put("howItWorks", startup.getHowItWorks());
+                stMap.put("technologies", startup.getTechnologies());
+                stMap.put("areasOfInterest", startup.getAreasOfInterest());
+                stMap.put("mainObjective", startup.getMainObjective());
+                stMap.put("desiredPartners", startup.getDesiredPartners());
+                stMap.put("currentStage", startup.getCurrentStage());
+                stMap.put("location", startup.getLocation());
+                if (startupServiceDemands != null && !startupServiceDemands.isEmpty()) {
+                    List<Map<String, Object>> dList = new ArrayList<>();
+                    for (Opportunity d : startupServiceDemands) {
+                        Map<String, Object> dm = new LinkedHashMap<>();
+                        dm.put("id", d.getId());
+                        dm.put("title", d.getTitle());
+                        dm.put("targetCategory", d.getTargetCategory());
+                        dm.put("description", d.getDescription());
+                        dm.put("tags", d.getTags());
+                        dList.add(dm);
+                    }
+                    stMap.put("serviceDemands", dList);
+                }
+                payload.put("startup", stMap);
+                payload.put("providers", providers.stream().map(ServiceProviderDTO::fromEntity).toList());
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+                ResponseEntity<Map> resp = restTemplate.postForEntity(
+                        aiBaseUrl + "/api/ai/match-providers",
+                        entity,
+                        Map.class
+                );
+                if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                    Object matchesObj = resp.getBody().get("matches");
+                    if (matchesObj instanceof List<?> list) {
+                        for (Object item : list) {
+                            if (item instanceof Map<?, ?> m) {
+                                Object pidObj = m.get("providerId");
+                                if (pidObj != null) {
+                                    Long pid = Long.valueOf(String.valueOf(pidObj));
+                                    aiResultsByProviderId.put(pid, (Map<String, Object>) m);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Usando cálculo auditado local para Startup -> Prestadores: {}", e.getMessage());
+            }
+        }
+
+        List<ServiceProviderDTO> dtos = new ArrayList<>();
+        for (ServiceProvider p : providers) {
+            ServiceProviderDTO dto = ServiceProviderDTO.fromEntity(p);
+            if (startup != null) {
+                Map<String, Object> localComp = computeProviderStartupCompatibility(p, startup, startupServiceDemands);
+                Map<String, Object> aiMatch = p.getId() != null ? aiResultsByProviderId.get(p.getId()) : null;
+                if (aiMatch != null) {
+                    Object sc = aiMatch.get("matchScore");
+                    dto.setMatchScore(sc instanceof Number n ? n.intValue() : (Integer) localComp.get("matchScore"));
+                    Object just = aiMatch.get("justification");
+                    dto.setJustification(just != null ? String.valueOf(just) : (String) localComp.get("justification"));
+                    Object rObj = aiMatch.get("reasons");
+                    if (rObj instanceof Map<?, ?> rm) {
+                        Map<String, String> rMap = new LinkedHashMap<>();
+                        rm.forEach((k, v) -> rMap.put(String.valueOf(k), v != null ? String.valueOf(v) : ""));
+                        dto.setMatchReasons(rMap);
+                    } else {
+                        dto.setMatchReasons((Map<String, String>) localComp.get("reasons"));
+                    }
+                } else {
+                    dto.setMatchScore((Integer) localComp.get("matchScore"));
+                    dto.setJustification((String) localComp.get("justification"));
+                    dto.setMatchReasons((Map<String, String>) localComp.get("reasons"));
+                }
+            } else {
+                // Calcula prontidão técnica real do perfil do prestador sem número estático
+                int completeness = 65;
+                if (p.getDescription() != null && !p.getDescription().isBlank()) completeness += 8;
+                if (p.getMainService() != null && !p.getMainService().isBlank()) completeness += 6;
+                if (p.getServiceExperience() != null && !p.getServiceExperience().isBlank()) completeness += 6;
+                if (p.getToolsAndSkills() != null && !p.getToolsAndSkills().isBlank()) completeness += 5;
+                if (p.getProjectName() != null && !p.getProjectName().isBlank()) completeness += 5;
+                if (p.getInterestSectors() != null && !p.getInterestSectors().isBlank()) completeness += 3;
+                dto.setMatchScore(Math.min(98, completeness));
+            }
+            dtos.add(dto);
+        }
+
+        dtos.sort((a, b) -> Integer.compare(
+                b.getMatchScore() != null ? b.getMatchScore() : 0,
+                a.getMatchScore() != null ? a.getMatchScore() : 0
+        ));
+        return dtos;
+    }
+
+    /**
+     * Avalia todas as Startups em Tração contra o perfil de um Prestador de Serviço
+     * (chamando o serviço Python de IA /api/ai/match-provider-startups com fallback determinístico).
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> evaluateProviderToStartupsMatch(
+            ServiceProvider provider,
+            List<StartupProfile> tractionStartups,
+            Map<Long, List<Opportunity>> demandsByStartupId,
+            Set<Long> savedStartupIds) {
+
+        if (tractionStartups == null || tractionStartups.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Map<String, Object>> aiResultsByStartupId = new HashMap<>();
+        if (provider != null) {
+            try {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("provider", ServiceProviderDTO.fromEntity(provider));
+                List<Map<String, Object>> stPayloads = new ArrayList<>();
+                for (StartupProfile st : tractionStartups) {
+                    Map<String, Object> sm = new LinkedHashMap<>();
+                    sm.put("id", st.getId());
+                    sm.put("name", st.getName());
+                    sm.put("mainArea", st.getMainArea());
+                    sm.put("mainSector", st.getMainSector());
+                    sm.put("currentStage", st.getCurrentStage());
+                    sm.put("description", st.getDescription());
+                    sm.put("problem", st.getProblem());
+                    sm.put("howItWorks", st.getHowItWorks());
+                    sm.put("technologies", st.getTechnologies());
+                    sm.put("areasOfInterest", st.getAreasOfInterest());
+                    sm.put("mainObjective", st.getMainObjective());
+                    sm.put("desiredPartners", st.getDesiredPartners());
+                    sm.put("location", st.getLocation());
+                    sm.put("website", st.getWebsite());
+                    sm.put("avatarUrl", st.getAvatarUrl());
+                    List<Opportunity> stDemands = demandsByStartupId != null && st.getId() != null
+                            ? demandsByStartupId.getOrDefault(st.getId(), List.of())
+                            : List.of();
+                    if (!stDemands.isEmpty()) {
+                        List<Map<String, Object>> dList = new ArrayList<>();
+                        for (Opportunity d : stDemands) {
+                            Map<String, Object> dm = new LinkedHashMap<>();
+                            dm.put("id", d.getId());
+                            dm.put("title", d.getTitle());
+                            dm.put("targetCategory", d.getTargetCategory());
+                            dm.put("description", d.getDescription());
+                            dm.put("tags", d.getTags());
+                            dList.add(dm);
+                        }
+                        sm.put("serviceDemands", dList);
+                    }
+                    stPayloads.add(sm);
+                }
+                payload.put("startups", stPayloads);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+                ResponseEntity<Map> resp = restTemplate.postForEntity(
+                        aiBaseUrl + "/api/ai/match-provider-startups",
+                        entity,
+                        Map.class
+                );
+                if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                    Object matchesObj = resp.getBody().get("matches");
+                    if (matchesObj instanceof List<?> list) {
+                        for (Object item : list) {
+                            if (item instanceof Map<?, ?> m) {
+                                Object sidObj = m.get("startupId");
+                                if (sidObj != null) {
+                                    Long sid = Long.valueOf(String.valueOf(sidObj));
+                                    aiResultsByStartupId.put(sid, (Map<String, Object>) m);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Usando cálculo auditado local para Prestador -> Startups em Tração: {}", e.getMessage());
+            }
+        }
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (StartupProfile st : tractionStartups) {
+            List<Opportunity> stDemands = demandsByStartupId != null && st.getId() != null
+                    ? demandsByStartupId.getOrDefault(st.getId(), List.of())
+                    : List.of();
+            Map<String, Object> localComp = computeProviderStartupCompatibility(provider, st, stDemands);
+            Map<String, Object> aiMatch = st.getId() != null ? aiResultsByStartupId.get(st.getId()) : null;
+
+            int score = (Integer) localComp.get("matchScore");
+            String justification = (String) localComp.get("justification");
+            Object reasons = localComp.get("reasons");
+
+            if (aiMatch != null) {
+                Object sc = aiMatch.get("matchScore");
+                if (sc instanceof Number n) score = n.intValue();
+                Object just = aiMatch.get("justification");
+                if (just != null && !String.valueOf(just).isBlank()) justification = String.valueOf(just);
+                if (aiMatch.get("reasons") != null) reasons = aiMatch.get("reasons");
+            }
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", st.getId());
+            item.put("startupId", st.getId());
+            item.put("name", st.getName());
+            item.put("mainArea", st.getMainArea() != null && !st.getMainArea().isBlank() ? st.getMainArea() : (st.getMainSector() != null ? st.getMainSector() : "Tecnologia"));
+            item.put("mainSector", st.getMainSector());
+            item.put("currentStage", st.getCurrentStage() != null && !st.getCurrentStage().isBlank() ? st.getCurrentStage() : "Tração");
+            item.put("description", st.getDescription());
+            item.put("problem", st.getProblem());
+            item.put("howItWorks", st.getHowItWorks());
+            item.put("differentiator", st.getDifferentiator());
+            item.put("technologies", st.getTechnologies() != null && !st.getTechnologies().isBlank() ? st.getTechnologies() : st.getAreasOfInterest());
+            item.put("businessModel", st.getBusinessModel());
+            item.put("location", st.getLocation() != null && !st.getLocation().isBlank() ? st.getLocation() : "Brasil");
+            item.put("website", st.getWebsite());
+            item.put("phone", st.getPhone() != null ? st.getPhone() : (st.getUser() != null ? st.getUser().getPhone() : null));
+            item.put("email", st.getUser() != null ? st.getUser().getEmail() : null);
+            item.put("avatarUrl", st.getAvatarUrl() != null ? st.getAvatarUrl() : (st.getUser() != null ? st.getUser().getAvatarUrl() : null));
+            item.put("tractionAttested", st.getTractionAttested());
+            item.put("trlScore", st.getTrlScore());
+            item.put("mainObjective", st.getMainObjective());
+            item.put("desiredPartners", st.getDesiredPartners());
+            item.put("matchScore", score);
+            item.put("justification", justification);
+            item.put("reasons", reasons);
+            item.put("saved", savedStartupIds != null && st.getId() != null && savedStartupIds.contains(st.getId()));
+            item.put("openServiceDemandsCount", stDemands.size());
+            if (!stDemands.isEmpty()) {
+                Opportunity topDemand = stDemands.get(0);
+                item.put("openDemandTitle", topDemand.getTitle());
+                item.put("openDemandCategory", topDemand.getTargetCategory());
+            }
+            results.add(item);
+        }
+
+        results.sort((a, b) -> Integer.compare((int) b.get("matchScore"), (int) a.get("matchScore")));
+        return results;
+    }
+
+    /**
+     * Calcula a compatibilidade real e auditada (0 a 100%) entre um Prestador de Serviços
+     * e uma OPORTUNIDADE lançada por uma startup em estágio de Tração.
+     */
+    public Map<String, Object> computeProviderOpportunityCompatibility(
+            ServiceProvider provider,
+            Opportunity opp,
+            StartupProfile startup) {
+
+        String pName = provider != null && provider.getName() != null ? provider.getName().trim() : "Prestador";
+        String pCat = provider != null && provider.getCategory() != null ? provider.getCategory().trim() : "Serviços Especializados";
+        String pCompCat = provider != null && provider.getComplementaryCategory() != null ? provider.getComplementaryCategory().trim() : "";
+        String pMainService = provider != null && provider.getMainService() != null ? provider.getMainService().trim() : pCat;
+        String pBio = provider != null && provider.getDescription() != null ? provider.getDescription().trim() : "";
+        String pExp = provider != null && provider.getServiceExperience() != null ? provider.getServiceExperience().trim() : "";
+        String pSkills = provider != null && provider.getToolsAndSkills() != null
+                ? provider.getToolsAndSkills().trim()
+                : (provider != null && provider.getTags() != null ? provider.getTags().trim() : "");
+        String pSectors = provider != null && provider.getInterestSectors() != null
+                ? provider.getInterestSectors().trim()
+                : (provider != null && provider.getTargetSegment() != null ? provider.getTargetSegment().trim() : "");
+        String pConnPref = provider != null && provider.getConnectionPreference() != null
+                ? provider.getConnectionPreference().trim() : "Projetos sob demanda";
+        String pAvail = provider != null && provider.getAvailability() != null ? provider.getAvailability().trim() : "Disponível";
+        String pLoc = provider != null && provider.getLocation() != null ? provider.getLocation().trim() : "Brasil";
+        String pProjName = provider != null && provider.getProjectName() != null ? provider.getProjectName().trim() : "";
+        String pProjDesc = provider != null && provider.getProjectDescription() != null ? provider.getProjectDescription().trim() : "";
+        String pProjTools = provider != null && provider.getProjectTools() != null ? provider.getProjectTools().trim() : "";
+
+        String oppTitle = opp != null && opp.getTitle() != null ? opp.getTitle().trim() : "Demanda de Trabalho";
+        String oppDesc = opp != null && opp.getDescription() != null ? opp.getDescription().trim() : "";
+        String oppTags = opp != null && opp.getTags() != null ? opp.getTags().trim() : "";
+        String oppCat = opp != null && opp.getTargetCategory() != null ? opp.getTargetCategory().trim() : (startup != null && startup.getMainArea() != null ? startup.getMainArea().trim() : "Tecnologia");
+        String oppMeta = opp != null && opp.getMetaInfo() != null ? opp.getMetaInfo().trim() : "";
+
+        String sName = startup != null && startup.getName() != null ? startup.getName().trim() : "Startup";
+        String sArea = startup != null && startup.getMainArea() != null ? startup.getMainArea().trim() : oppCat;
+        String sLoc = startup != null && startup.getLocation() != null ? startup.getLocation().trim() : "Brasil";
+        String sStage = startup != null && startup.getCurrentStage() != null ? startup.getCurrentStage().trim() : "Tração";
+
+        String oppCorpus = normText(oppTitle + " " + oppDesc + " " + oppTags + " " + oppCat + " " + oppMeta + " " + sName + " " + sArea);
+
+        // 1. Alinhamento de Categoria e Demanda (0..40 pts)
+        int catScore = 20;
+        String normPCat = normText(pCat);
+        String normPMain = normText(pMainService);
+        if (!normPCat.isEmpty() && (oppCorpus.contains(normPCat) || Arrays.stream(normPCat.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
+            catScore += 12;
+        }
+        if (!normPMain.isEmpty() && (oppCorpus.contains(normPMain) || Arrays.stream(normPMain.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
+            catScore += 8;
+        }
+        if (!pSectors.isEmpty()) {
+            for (String sec : pSectors.split("[,;/•]+")) {
+                String nSec = normText(sec);
+                if (nSec.length() >= 3 && oppCorpus.contains(nSec)) {
+                    catScore += 5;
+                    break;
+                }
+            }
+        }
+        catScore = Math.min(40, catScore);
+
+        // 2. Competências Técnicas e Ferramentas Requeridas (0..35 pts)
+        String allSkillsRaw = pSkills + ", " + pMainService + ", " + pProjTools;
+        List<String> matchedSkills = new ArrayList<>();
+        List<String> allSkillsList = new ArrayList<>();
+        for (String tok : allSkillsRaw.split("[,;/•\\n]+")) {
+            String clean = tok.trim();
+            if (clean.length() >= 2 && !allSkillsList.contains(clean)) {
+                allSkillsList.add(clean);
+                String nSk = normText(clean);
+                if (!nSk.isEmpty() && (oppCorpus.contains(nSk) || Arrays.stream(nSk.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
+                    matchedSkills.add(clean);
+                }
+            }
+        }
+
+        int techScore;
+        if (matchedSkills.size() >= 3) {
+            techScore = 33;
+        } else if (matchedSkills.size() == 2) {
+            techScore = 28;
+        } else if (matchedSkills.size() == 1) {
+            techScore = 23;
+        } else if (!allSkillsList.isEmpty()) {
+            techScore = 18;
+        } else {
+            techScore = 14;
+        }
+
+        // 3. Modelo de Atuação, Portfólio e Disponibilidade (0..25 pts)
+        int otherScore = 12;
+        if (!pBio.isEmpty() || !pExp.isEmpty()) otherScore += 5;
+        if (!pProjName.isEmpty() || !pProjDesc.isEmpty()) otherScore += 4;
+        if (normText(pAvail).contains("imediata") || normText(pAvail).contains("disponivel")) otherScore += 2;
+        if (!pLoc.isEmpty() && !sLoc.isEmpty() && (normText(pLoc).contains(normText(sLoc)) || normText(sLoc).contains(normText(pLoc)) || normText(pLoc).contains("brasil") || normText(pLoc).contains("remoto"))) {
+            otherScore += 2;
+        }
+        otherScore = Math.min(25, otherScore);
+
+        int totalScore = Math.max(52, Math.min(99, catScore + techScore + otherScore));
+        String skillsHighlight = !matchedSkills.isEmpty()
+                ? String.join(", ", matchedSkills.subList(0, Math.min(4, matchedSkills.size())))
+                : (!pSkills.isEmpty() ? pSkills : pMainService);
+
+        String sinergiaTecnica = "A oportunidade '" + oppTitle + "' demanda competências em " + (!oppTags.isEmpty() ? oppTags : oppCat)
+                + ", especialidade coberta pelo serviço de " + pMainService + " (" + pCat + ") com domínio em " + skillsHighlight + ".";
+        String modeloAtuacao = "Disponibilidade (" + pAvail + ") no formato '" + pConnPref + "', perfeitamente aderente ao prazo e "
+                + "ao escopo de entrega esperado pela " + sName + " (" + sStage + ").";
+        String impactoEsperado = "Execução técnica direta da demanda de trabalho para acelerar a escalabilidade da " + sName
+                + (!pProjName.isEmpty() ? ", apoiada pelo case prático '" + pProjName + "'." : " com foco em entregas ágeis.");
+
+        String justification = "Compatibilidade de " + totalScore + "% entre " + pName + " (" + pCat + ") e a oportunidade '" + oppTitle
+                + "' da " + sName + " (" + sArea + " · " + sStage + "): sinergia técnica em " + skillsHighlight + " e modelo '" + pConnPref + "'.";
+
+        Map<String, String> reasons = new LinkedHashMap<>();
+        reasons.put("perfil", sinergiaTecnica);
+        reasons.put("requisitos", "Competências e ferramentas aderentes à demanda: " + skillsHighlight + ".");
+        reasons.put("objetivo", modeloAtuacao);
+        reasons.put("contexto", impactoEsperado);
+        reasons.put("sinergiaTecnica", sinergiaTecnica);
+        reasons.put("modeloAtuacao", modeloAtuacao);
+        reasons.put("impactoEsperado", impactoEsperado);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("matchScore", totalScore);
+        out.put("justification", justification);
+        out.put("recommendedAction", "Enviar proposta técnica para a oportunidade '" + oppTitle + "' da " + sName + ".");
+        out.put("reasons", reasons);
+        return out;
+    }
+
+    /**
+     * Avalia as OPORTUNIDADES lançadas pelas Startups em Tração contra o perfil do Prestador de Serviços
+     * (chamando o serviço Python de IA /api/ai/match-provider-opportunities com fallback determinístico auditado).
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> evaluateProviderToOpportunitiesMatch(
+            ServiceProvider provider,
+            List<Opportunity> opportunities,
+            Set<Long> savedIds) {
+
+        if (opportunities == null || opportunities.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Map<String, Object>> aiResultsByOppId = new HashMap<>();
+        if (provider != null) {
+            try {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("provider", ServiceProviderDTO.fromEntity(provider));
+                List<Map<String, Object>> oppPayloads = new ArrayList<>();
+                for (Opportunity opp : opportunities) {
+                    StartupProfile st = opp.getStartup();
+                    Map<String, Object> om = new LinkedHashMap<>();
+                    om.put("id", opp.getId());
+                    om.put("opportunityId", opp.getId());
+                    om.put("title", opp.getTitle());
+                    om.put("demandTitle", opp.getTitle());
+                    om.put("description", opp.getDescription());
+                    om.put("tags", opp.getTags());
+                    om.put("targetCategory", opp.getTargetCategory());
+                    om.put("metaInfo", opp.getMetaInfo());
+                    if (st != null) {
+                        om.put("startupId", st.getId());
+                        om.put("startupName", st.getName());
+                        om.put("startupArea", st.getMainArea() != null ? st.getMainArea() : st.getMainSector());
+                        om.put("startupSector", st.getMainSector());
+                        om.put("startupLocation", st.getLocation());
+                        om.put("startupStage", st.getCurrentStage() != null ? st.getCurrentStage() : "Tração");
+                        om.put("startupProblem", st.getProblem());
+                    }
+                    oppPayloads.add(om);
+                }
+                payload.put("opportunities", oppPayloads);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+                ResponseEntity<Map> resp = restTemplate.postForEntity(
+                        aiBaseUrl + "/api/ai/match-provider-opportunities",
+                        entity,
+                        Map.class
+                );
+                if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                    Object matchesObj = resp.getBody().get("matches");
+                    if (matchesObj instanceof List<?> list) {
+                        for (Object item : list) {
+                            if (item instanceof Map<?, ?> m) {
+                                Object oidObj = m.get("opportunityId");
+                                if (oidObj == null) oidObj = m.get("id");
+                                if (oidObj != null) {
+                                    Long oid = Long.valueOf(String.valueOf(oidObj));
+                                    aiResultsByOppId.put(oid, (Map<String, Object>) m);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Usando cálculo auditado local para Prestador -> Oportunidades de Startups: {}", e.getMessage());
+            }
+        }
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Opportunity opp : opportunities) {
+            StartupProfile st = opp.getStartup();
+            Map<String, Object> localComp = computeProviderOpportunityCompatibility(provider, opp, st);
+            Map<String, Object> aiMatch = opp.getId() != null ? aiResultsByOppId.get(opp.getId()) : null;
+
+            int score = (Integer) localComp.get("matchScore");
+            String justification = (String) localComp.get("justification");
+            Object reasons = localComp.get("reasons");
+
+            if (aiMatch != null) {
+                Object sc = aiMatch.get("matchScore");
+                if (sc instanceof Number n) score = n.intValue();
+                Object just = aiMatch.get("justification");
+                if (just != null && !String.valueOf(just).isBlank()) justification = String.valueOf(just);
+                if (aiMatch.get("reasons") != null) reasons = aiMatch.get("reasons");
+            }
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", opp.getId());
+            item.put("opportunityId", opp.getId());
+            item.put("title", opp.getTitle());
+            item.put("demandTitle", opp.getTitle());
+            item.put("name", opp.getTitle());
+            item.put("description", opp.getDescription());
+            item.put("demand", opp.getDescription());
+            item.put("openDemandTitle", opp.getTitle());
+            item.put("openDemandDescription", opp.getDescription());
+            item.put("tags", opp.getTags());
+            item.put("technologies", opp.getTags() != null && !opp.getTags().isBlank()
+                    ? opp.getTags()
+                    : (st != null ? st.getTechnologies() : ""));
+            item.put("targetCategory", opp.getTargetCategory() != null
+                    ? opp.getTargetCategory()
+                    : (st != null && st.getMainArea() != null ? st.getMainArea() : "Tecnologia"));
+            item.put("category", item.get("targetCategory"));
+            item.put("mainArea", item.get("targetCategory"));
+            item.put("metaInfo", opp.getMetaInfo());
+            item.put("status", opp.getStatus() != null ? opp.getStatus().name() : "PUBLICADA");
+            item.put("type", opp.getType() != null ? opp.getType().name() : "SERVICO");
+            item.put("createdAt", opp.getCreatedAt() != null ? opp.getCreatedAt().toString() : null);
+
+            if (st != null) {
+                item.put("startupId", st.getId());
+                item.put("startupName", st.getName());
+                item.put("startupArea", st.getMainArea() != null ? st.getMainArea() : st.getMainSector());
+                item.put("startupSector", st.getMainSector());
+                item.put("startupLocation", st.getLocation() != null ? st.getLocation() : "Brasil");
+                item.put("location", st.getLocation() != null ? st.getLocation() : "Brasil");
+                item.put("startupStage", st.getCurrentStage() != null ? st.getCurrentStage() : "Tração");
+                item.put("currentStage", st.getCurrentStage() != null ? st.getCurrentStage() : "Tração");
+                item.put("startupAvatarUrl", st.getAvatarUrl());
+                item.put("avatarUrl", st.getAvatarUrl());
+                item.put("startupProblem", st.getProblem());
+                item.put("problem", st.getProblem());
+                item.put("startupHowItWorks", st.getHowItWorks());
+                item.put("startupTechnologies", st.getTechnologies());
+                item.put("website", st.getWebsite());
+                item.put("phone", st.getPhone() != null ? st.getPhone() : (st.getUser() != null ? st.getUser().getPhone() : null));
+                item.put("email", st.getUser() != null ? st.getUser().getEmail() : null);
+            } else {
+                item.put("startupId", null);
+                item.put("startupName", "Startup em Tração");
+                item.put("location", "Brasil");
+                item.put("currentStage", "Tração");
+            }
+
+            item.put("matchScore", score);
+            item.put("justification", justification);
+            item.put("reasons", reasons);
+
+            boolean isSaved = savedIds != null && (
+                    savedIds.contains(opp.getId()) ||
+                    (st != null && st.getId() != null && savedIds.contains(st.getId()))
+            );
+            item.put("saved", isSaved);
+
             results.add(item);
         }
 

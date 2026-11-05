@@ -23,12 +23,13 @@ public class OpportunityController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista todas as oportunidades com filtros por tipo, busca e empresa")
+    @Operation(summary = "Lista todas as oportunidades com filtros por tipo, busca, empresa ou startup")
     public ResponseEntity<List<OpportunityDTO>> list(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) Long companyId) {
-        return ResponseEntity.ok(opportunityService.listOpportunities(type, query, companyId));
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) Long startupId) {
+        return ResponseEntity.ok(opportunityService.listOpportunities(type, query, companyId, startupId));
     }
 
     @GetMapping("/{id}")

@@ -5,7 +5,9 @@ import com.startin.api.dto.ai.AiChatResponseDTO;
 import com.startin.api.dto.ai.AiDailySyncPayloadDTO;
 import com.startin.api.dto.match.MatchResultDTO;
 import com.startin.api.dto.match.MatchTriggerRequestDTO;
+import com.startin.api.model.ServiceProvider;
 import com.startin.api.model.StartupProfile;
+import com.startin.api.repository.ServiceProviderRepository;
 import com.startin.api.repository.StartupProfileRepository;
 import com.startin.api.service.AiIntegrationService;
 import com.startin.api.service.MatchService;
@@ -25,14 +27,17 @@ public class AiController {
     private final AiIntegrationService aiIntegrationService;
     private final MatchService matchService;
     private final StartupProfileRepository startupProfileRepository;
+    private final ServiceProviderRepository serviceProviderRepository;
 
     public AiController(
             AiIntegrationService aiIntegrationService,
             MatchService matchService,
-            StartupProfileRepository startupProfileRepository) {
+            StartupProfileRepository startupProfileRepository,
+            ServiceProviderRepository serviceProviderRepository) {
         this.aiIntegrationService = aiIntegrationService;
         this.matchService = matchService;
         this.startupProfileRepository = startupProfileRepository;
+        this.serviceProviderRepository = serviceProviderRepository;
     }
 
     @GetMapping("/status")
@@ -42,24 +47,46 @@ public class AiController {
     }
 
     @PostMapping("/chat")
-    @Operation(summary = "Conversa com o Assistente IA gerador de templates e propostas (com suporte a oportunidade selecionada e anexos)")
+    @Operation(summary = "Conversa com o Assistente IA gerador de templates e propostas (com suporte a Startup, Prestador, oportunidade selecionada e anexos)")
     public ResponseEntity<AiChatResponseDTO> chat(@RequestBody AiChatRequestDTO request) {
-        StartupProfile profile = null;
-        Long sid = request.getStartupId();
-        if (sid == null && request.getStartup() != null) {
-            sid = request.getStartup().getId();
-        }
-        if (sid != null) {
-            final Long lookupId = sid;
-            profile = startupProfileRepository.findById(lookupId)
-                    .or(() -> startupProfileRepository.findByUserId(lookupId))
-                    .orElse(null);
-        }
-        if (profile == null) {
-            profile = startupProfileRepository.findAll().stream().findFirst().orElse(null);
+        boolean isProviderRole = "PROVIDER".equalsIgnoreCase(request.getAccountType())
+                || request.getProviderId() != null
+                || (request.getProvider() != null && !request.getProvider().isEmpty());
+
+        ServiceProvider provider = null;
+        if (isProviderRole) {
+            if (request.getProviderId() != null) {
+                provider = serviceProviderRepository.findById(request.getProviderId()).orElse(null);
+            }
+            if (provider == null && request.getUserId() != null) {
+                provider = serviceProviderRepository.findByUserId(request.getUserId()).orElse(null);
+            }
+            if (provider == null) {
+                provider = serviceProviderRepository.findAll().stream().findFirst().orElse(null);
+            }
         }
 
-        String reply = aiIntegrationService.chatWithAssistant(request, profile);
+        StartupProfile profile = null;
+        if (!isProviderRole) {
+            Long sid = request.getStartupId();
+            if (sid == null && request.getStartup() != null) {
+                sid = request.getStartup().getId();
+            }
+            if (sid != null) {
+                final Long lookupId = sid;
+                profile = startupProfileRepository.findById(lookupId)
+                        .or(() -> startupProfileRepository.findByUserId(lookupId))
+                        .orElse(null);
+            }
+            if (profile == null && request.getUserId() != null) {
+                profile = startupProfileRepository.findByUserId(request.getUserId()).orElse(null);
+            }
+            if (profile == null) {
+                profile = startupProfileRepository.findAll().stream().findFirst().orElse(null);
+            }
+        }
+
+        String reply = aiIntegrationService.chatWithAssistant(request, profile, provider);
         return ResponseEntity.ok(new AiChatResponseDTO(reply));
     }
 
@@ -73,6 +100,12 @@ public class AiController {
     @Operation(summary = "Melhora e estrutura o texto de desafios e demandas operacionais da empresa com IA e extrai tópicos")
     public ResponseEntity<Map<String, Object>> enhanceCompanyDemands(@RequestBody Map<String, Object> payload) {
         return ResponseEntity.ok(aiIntegrationService.enhanceCompanyDemandsText(payload));
+    }
+
+    @PostMapping("/enhance-provider-services")
+    @Operation(summary = "Melhora e estrutura a descrição dos serviços do prestador com IA e extrai competências")
+    public ResponseEntity<Map<String, Object>> enhanceProviderServices(@RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(aiIntegrationService.enhanceProviderServicesText(payload));
     }
 
     @PostMapping("/verify-traction-pdf")

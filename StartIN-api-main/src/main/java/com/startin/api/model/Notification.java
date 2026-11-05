@@ -32,6 +32,8 @@ public class Notification {
 
     private Long companyId;
 
+    private Long providerId;
+
     @Column(length = 80)
     private String targetScreen;
 
@@ -64,6 +66,28 @@ public class Notification {
         Notification n = new Notification();
         n.setRecipientRole("STARTUP");
         n.setStartupId(startupId);
+        n.setRecipientUserId(userId);
+        n.setTitle(title);
+        n.setDescription(description);
+        n.setTimeAgo("Agora");
+        n.setType(type != null ? type : "Sistema");
+        n.setTargetScreen(targetScreen);
+        n.setTargetId(targetId);
+        n.setReadStatus(false);
+        return n;
+    }
+
+    public static Notification forProvider(
+            Long providerId,
+            Long userId,
+            String title,
+            String description,
+            String type,
+            String targetScreen,
+            String targetId) {
+        Notification n = new Notification();
+        n.setRecipientRole("PROVIDER");
+        n.setProviderId(providerId);
         n.setRecipientUserId(userId);
         n.setTitle(title);
         n.setDescription(description);
@@ -186,6 +210,14 @@ public class Notification {
 
     public void setCompanyId(Long companyId) {
         this.companyId = companyId;
+    }
+
+    public Long getProviderId() {
+        return providerId;
+    }
+
+    public void setProviderId(Long providerId) {
+        this.providerId = providerId;
     }
 
     public String getTargetScreen() {

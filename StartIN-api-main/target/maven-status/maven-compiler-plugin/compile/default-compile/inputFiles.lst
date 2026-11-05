@@ -8,6 +8,8 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\MatchController.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\NotificationController.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\OpportunityController.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\ServiceConnectionController.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\ServiceProviderController.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\controller\StartupProfileController.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiChatRequestDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\ai\AiChatResponseDTO.java
@@ -31,6 +33,9 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\notification\NotificationDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\opportunity\CreateOpportunityDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\opportunity\OpportunityDTO.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\provider\CreateServiceConnectionDTO.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\provider\ServiceConnectionDTO.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\provider\ServiceProviderDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\startup\MatchingPreferencesDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\dto\startup\StartupProfileDTO.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\ChatMessage.java
@@ -43,6 +48,9 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\MatchResult.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\Notification.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\Opportunity.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\ProviderSavedStartup.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\ServiceConnection.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\ServiceProvider.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\StartupProfile.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\model\User.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\ChatMessageRepository.java
@@ -50,6 +58,9 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\MatchResultRepository.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\NotificationRepository.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\OpportunityRepository.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\ProviderSavedStartupRepository.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\ServiceConnectionRepository.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\ServiceProviderRepository.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\StartupProfileRepository.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\repository\UserRepository.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\AiIntegrationService.java
@@ -59,5 +70,7 @@ C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\MatchService.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\NotificationService.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\OpportunityService.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\ServiceConnectionService.java
+C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\ServiceProviderService.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\service\StartupProfileService.java
 C:\Users\vinic\Downloads\StartIn\StartIN-api-main\src\main\java\com\startin\api\StartInApplication.java

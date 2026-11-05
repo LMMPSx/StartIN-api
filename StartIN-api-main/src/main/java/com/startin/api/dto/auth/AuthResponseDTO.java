@@ -12,10 +12,20 @@ public class AuthResponseDTO {
     private String avatarUrl;
     private Long startupProfileId;
     private Long companyId;
+    private Long providerId;
     private String accountType;
     private String message;
 
     public AuthResponseDTO() {
+    }
+
+    public Long getProviderId() { return providerId; }
+    public void setProviderId(Long providerId) { this.providerId = providerId; }
+
+    public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, String phone, String avatarUrl, Long startupProfileId, Long companyId, Long providerId, String accountType) {
+        AuthResponseDTO dto = new AuthResponseDTO(true, token, userId, email, name, cnpj, phone, avatarUrl, startupProfileId, companyId, accountType, "Autenticado com sucesso");
+        dto.setProviderId(providerId);
+        return dto;
     }
 
     public AuthResponseDTO(boolean success, String token, Long userId, String email, String name, String cnpj, String avatarUrl, Long startupProfileId, String message) {

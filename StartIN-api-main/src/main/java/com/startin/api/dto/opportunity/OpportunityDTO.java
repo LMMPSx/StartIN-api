@@ -18,6 +18,9 @@ public class OpportunityDTO {
     private String externalUrl;
     private Long companyId;
     private String companyName;
+    private Long startupId;
+    private String startupName;
+    private String targetCategory;
 
     public OpportunityDTO() {
     }
@@ -37,12 +40,24 @@ public class OpportunityDTO {
         dto.setColor(entity.getColor());
         dto.setStatus(entity.getStatus() != null ? entity.getStatus().name() : "PUBLICADA");
         dto.setExternalUrl(entity.getExternalUrl());
+        dto.setTargetCategory(entity.getTargetCategory());
         if (entity.getCompany() != null) {
             dto.setCompanyId(entity.getCompany().getId());
             dto.setCompanyName(entity.getCompany().getName());
         }
+        if (entity.getStartup() != null) {
+            dto.setStartupId(entity.getStartup().getId());
+            dto.setStartupName(entity.getStartup().getName());
+        }
         return dto;
     }
+
+    public Long getStartupId() { return startupId; }
+    public void setStartupId(Long startupId) { this.startupId = startupId; }
+    public String getStartupName() { return startupName; }
+    public void setStartupName(String startupName) { this.startupName = startupName; }
+    public String getTargetCategory() { return targetCategory; }
+    public void setTargetCategory(String targetCategory) { this.targetCategory = targetCategory; }
 
     public Long getCompanyId() { return companyId; }
     public void setCompanyId(Long companyId) { this.companyId = companyId; }

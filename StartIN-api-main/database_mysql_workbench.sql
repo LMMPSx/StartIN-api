@@ -1,42 +1,55 @@
--- =============================================================================
--- STARTIN - SCRIPT DE CRIAÇÃO DO BANCO DE DADOS PARA MYSQL WORKBENCH (MySQL 8+)
--- =============================================================================
+-- ============================================================================
+-- STARTIN — ESTRUTURA PADRÃO DO BANCO DE DADOS (MYSQL 8.0+)
+-- Schema oficial e padronizado para toda a plataforma StartIn:
+--   1. users                   (Autenticação e Contas: STARTUP, COMPANY, PROVIDER, ADMIN)
+--   2. startup_profiles        (Perfis completos de Startups - 6 etapas + atestação de tração)
+--   3. companies               (Perfis de Empresas, Corporações, Investidores, Governos e Hubs)
+--   4. service_providers       (Perfis completos de Prestadores de Serviço - 4 etapas)
+--   5. provider_saved_startups (Startups de Tração favoritadas/salvas pelos Prestadores)
+--   6. service_connections     (Solicitações e Conexões entre Startups e Prestadores)
+--   7. opportunities           (Oportunidades de Empresas e Demandas de Serviço de Startups)
+--   8. matches                 (Matchmaking IA entre Startups e Oportunidades)
+--   9. notifications           (Notificações em tempo real para Startups, Empresas e Prestadores)
+--  10. chat_messages           (Mensagens e anexos do Chat Contextual de Conexões e Matches)
+-- ============================================================================
 
--- 1. Criação do Schema (Banco de Dados)
 CREATE DATABASE IF NOT EXISTS startin_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 USE startin_db;
 
--- =============================================================================
--- 2. TABELA DE USUÁRIOS (users)
--- =============================================================================
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ============================================================================
+-- 1. TABELA: users
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT NOT NULL AUTO_INCREMENT,
     email VARCHAR(180) NOT NULL,
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) DEFAULT NULL,
-    cnpj VARCHAR(30) DEFAULT NULL,
+    cnpj VARCHAR(50) DEFAULT NULL,
     phone VARCHAR(50) DEFAULT NULL,
     avatar_url LONGTEXT DEFAULT NULL,
-    role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    role VARCHAR(50) NOT NULL DEFAULT 'USER',
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_users_email (email)
+    UNIQUE KEY uk_users_email (email),
+    KEY idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 3. TABELA DE PERFIS DE STARTUP (startup_profiles)
--- Campos descritivos longos utilizam TEXT para respeitar o limite de 65535 bytes do InnoDB utf8mb4
--- =============================================================================
+-- ============================================================================
+-- 2. TABELA: startup_profiles
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS startup_profiles (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT DEFAULT NULL,
 
-    -- Etapa 01: Identidade
-    name VARCHAR(255) NOT NULL,
+    -- Etapa 1: Identidade
+    name VARCHAR(255) NOT NULL DEFAULT 'Minha Startup',
     main_area VARCHAR(150) DEFAULT NULL,
     description TEXT DEFAULT NULL,
     location VARCHAR(150) DEFAULT NULL,
@@ -45,7 +58,7 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     website VARCHAR(255) DEFAULT NULL,
     founded_year VARCHAR(20) DEFAULT NULL,
 
-    -- Etapa 02: Solução
+    -- Etapa 2: Solução
     problem TEXT DEFAULT NULL,
     how_it_works TEXT DEFAULT NULL,
     differentiator TEXT DEFAULT NULL,
@@ -53,7 +66,7 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     technologies TEXT DEFAULT NULL,
     business_model VARCHAR(150) DEFAULT NULL,
 
-    -- Etapa 03: Mercado
+    -- Etapa 3: Mercado
     target_audience VARCHAR(255) DEFAULT NULL,
     main_sector VARCHAR(150) DEFAULT NULL,
     operation_region VARCHAR(150) DEFAULT NULL,
@@ -63,7 +76,7 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     competitors TEXT DEFAULT NULL,
     main_channel VARCHAR(150) DEFAULT NULL,
 
-    -- Etapa 04: Momento e Tração
+    -- Etapa 4: Momento & Atestação de Tração
     current_stage VARCHAR(100) DEFAULT NULL,
     traction_customers VARCHAR(150) DEFAULT NULL,
     product_maturity VARCHAR(150) DEFAULT NULL,
@@ -77,7 +90,7 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     cumulative_opportunities_found INT DEFAULT 0,
     last_update_new_matches_count INT DEFAULT 0,
 
-    -- Etapa 05: Objetivos
+    -- Etapa 5: Objetivos
     main_objective TEXT DEFAULT NULL,
     investment_need VARCHAR(150) DEFAULT NULL,
     execution_deadline VARCHAR(100) DEFAULT NULL,
@@ -86,26 +99,26 @@ CREATE TABLE IF NOT EXISTS startup_profiles (
     strategic_priority VARCHAR(255) DEFAULT NULL,
     desired_partners TEXT DEFAULT NULL,
 
-    -- Etapa 06: Preferências de Matching da IA
+    -- Etapa 6: Preferências de Matching
     areas_of_interest TEXT DEFAULT NULL,
     opportunity_types VARCHAR(255) DEFAULT NULL,
     receive_ai_recommendations BIT(1) DEFAULT b'1',
     email_notifications BIT(1) DEFAULT b'1',
     match_alerts BIT(1) DEFAULT b'1',
-    avatar_url LONGTEXT DEFAULT NULL,
 
+    avatar_url LONGTEXT DEFAULT NULL,
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-
     PRIMARY KEY (id),
     UNIQUE KEY uk_startup_profiles_user (user_id),
-    CONSTRAINT fk_startup_profiles_user FOREIGN KEY (user_id)
-        REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+    KEY idx_startup_profiles_stage (current_stage),
+    KEY idx_startup_profiles_area (main_area),
+    CONSTRAINT fk_startup_profiles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 4. TABELA DE EMPRESAS E ORGANIZAÇÕES PARCEIRAS (companies)
--- =============================================================================
+-- ============================================================================
+-- 3. TABELA: companies
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS companies (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT DEFAULT NULL,
@@ -125,13 +138,106 @@ CREATE TABLE IF NOT EXISTS companies (
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    CONSTRAINT fk_companies_user FOREIGN KEY (user_id)
-        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+    UNIQUE KEY uk_companies_user (user_id),
+    KEY idx_companies_sector (sector),
+    CONSTRAINT fk_companies_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 5. TABELA DE OPORTUNIDADES: EDITAIS, POCs, EVENTOS E COMPRAS (opportunities)
--- =============================================================================
+-- ============================================================================
+-- 4. TABELA: service_providers
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_providers (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT DEFAULT NULL,
+
+    -- Etapa 1: Identificação e Apresentação
+    name VARCHAR(255) NOT NULL,
+    provider_type VARCHAR(50) DEFAULT 'PROFISSIONAL',
+    category VARCHAR(150) DEFAULT 'Design',
+    description TEXT DEFAULT NULL,
+    location VARCHAR(150) DEFAULT NULL,
+    portfolio_url VARCHAR(500) DEFAULT NULL,
+    linkedin_url VARCHAR(500) DEFAULT NULL,
+    availability VARCHAR(150) DEFAULT 'Disponível imediatamente',
+    avatar_url LONGTEXT DEFAULT NULL,
+
+    -- Etapa 2: Serviços e Competências
+    main_service TEXT DEFAULT NULL,
+    service_experience TEXT DEFAULT NULL,
+    tools_and_skills TEXT DEFAULT NULL,
+    complementary_category VARCHAR(255) DEFAULT NULL,
+    target_segment TEXT DEFAULT NULL,
+    experience_years VARCHAR(100) DEFAULT NULL,
+
+    -- Etapa 3: Portfólio e Casos de Sucesso
+    project_name VARCHAR(255) DEFAULT NULL,
+    project_link VARCHAR(500) DEFAULT NULL,
+    project_description TEXT DEFAULT NULL,
+    project_year VARCHAR(20) DEFAULT '2026',
+    project_repo_url VARCHAR(500) DEFAULT NULL,
+    project_tools TEXT DEFAULT NULL,
+    project_type VARCHAR(150) DEFAULT NULL,
+    project_cover_url LONGTEXT DEFAULT NULL,
+
+    -- Etapa 4: Preferências de Parceria
+    interest_sectors TEXT DEFAULT NULL,
+    connection_preference TEXT DEFAULT NULL,
+    opportunities_sought TEXT DEFAULT NULL,
+    interest_region VARCHAR(150) DEFAULT 'Brasil',
+    target_startup_size VARCHAR(150) DEFAULT 'Tração',
+    communication_language VARCHAR(150) DEFAULT 'Português',
+
+    tags TEXT DEFAULT NULL,
+    saved_startup_ids TEXT DEFAULT NULL,
+    match_score INT DEFAULT 90,
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_service_providers_user (user_id),
+    KEY idx_service_providers_category (category),
+    CONSTRAINT fk_service_providers_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- 5. TABELA: provider_saved_startups
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS provider_saved_startups (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    provider_id BIGINT NOT NULL,
+    startup_id BIGINT NOT NULL,
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_provider_saved_startup (provider_id, startup_id),
+    KEY idx_pss_provider (provider_id),
+    KEY idx_pss_startup (startup_id),
+    CONSTRAINT fk_pss_provider FOREIGN KEY (provider_id) REFERENCES service_providers (id) ON DELETE CASCADE,
+    CONSTRAINT fk_pss_startup FOREIGN KEY (startup_id) REFERENCES startup_profiles (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- 6. TABELA: service_connections
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_connections (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    startup_id BIGINT NOT NULL,
+    provider_id BIGINT NOT NULL,
+    sender_type VARCHAR(50) NOT NULL DEFAULT 'STARTUP',
+    message TEXT DEFAULT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    match_score INT DEFAULT 90,
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    KEY idx_service_connections_startup (startup_id),
+    KEY idx_service_connections_provider (provider_id),
+    KEY idx_service_connections_status (status),
+    CONSTRAINT fk_service_connections_startup FOREIGN KEY (startup_id) REFERENCES startup_profiles (id) ON DELETE CASCADE,
+    CONSTRAINT fk_service_connections_provider FOREIGN KEY (provider_id) REFERENCES service_providers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- 7. TABELA: opportunities
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS opportunities (
     id BIGINT NOT NULL AUTO_INCREMENT,
     code VARCHAR(100) DEFAULT NULL,
@@ -143,20 +249,23 @@ CREATE TABLE IF NOT EXISTS opportunities (
     meta_info VARCHAR(255) DEFAULT NULL,
     tags VARCHAR(500) DEFAULT NULL,
     external_url VARCHAR(500) DEFAULT NULL,
-    color VARCHAR(120) DEFAULT NULL,
+    color VARCHAR(50) DEFAULT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'PUBLICADA',
     company_id BIGINT DEFAULT NULL,
+    startup_id BIGINT DEFAULT NULL,
+    target_category VARCHAR(150) DEFAULT NULL,
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    KEY idx_opportunities_type (type),
-    KEY idx_opportunities_code (code),
-    CONSTRAINT fk_opportunities_company FOREIGN KEY (company_id)
-        REFERENCES companies (id) ON DELETE SET NULL ON UPDATE CASCADE
+    KEY idx_opportunities_company (company_id),
+    KEY idx_opportunities_startup (startup_id),
+    KEY idx_opportunities_type_status (type, status),
+    CONSTRAINT fk_opportunities_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE SET NULL,
+    CONSTRAINT fk_opportunities_startup FOREIGN KEY (startup_id) REFERENCES startup_profiles (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 6. TABELA DE MATCHES CALCULADOS PELA IA PYTHON (matches)
--- =============================================================================
+-- ============================================================================
+-- 8. TABELA: matches
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS matches (
     id BIGINT NOT NULL AUTO_INCREMENT,
     startup_id BIGINT NOT NULL,
@@ -172,98 +281,56 @@ CREATE TABLE IF NOT EXISTS matches (
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_matches_startup_opportunity (startup_id, opportunity_id),
-    KEY idx_matches_score (match_score DESC),
-    CONSTRAINT fk_matches_startup FOREIGN KEY (startup_id)
-        REFERENCES startup_profiles (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_matches_opportunity FOREIGN KEY (opportunity_id)
-        REFERENCES opportunities (id) ON DELETE CASCADE ON UPDATE CASCADE
+    KEY idx_matches_startup (startup_id),
+    KEY idx_matches_opportunity (opportunity_id),
+    KEY idx_matches_status (status),
+    CONSTRAINT fk_matches_startup FOREIGN KEY (startup_id) REFERENCES startup_profiles (id) ON DELETE CASCADE,
+    CONSTRAINT fk_matches_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 7. TABELA DE NOTIFICAÇÕES (notifications)
--- =============================================================================
+-- ============================================================================
+-- 9. TABELA: notifications
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT NOT NULL AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
     description TEXT DEFAULT NULL,
-    time_ago VARCHAR(100) DEFAULT NULL,
-    type VARCHAR(50) DEFAULT 'TODAS',
+    time_ago VARCHAR(100) DEFAULT 'Agora',
+    type VARCHAR(80) NOT NULL DEFAULT 'TODAS',
     read_status BIT(1) DEFAULT b'0',
     recipient_role VARCHAR(30) DEFAULT 'STARTUP',
     recipient_user_id BIGINT DEFAULT NULL,
     startup_id BIGINT DEFAULT NULL,
     company_id BIGINT DEFAULT NULL,
+    provider_id BIGINT DEFAULT NULL,
     target_screen VARCHAR(80) DEFAULT NULL,
     target_id VARCHAR(80) DEFAULT NULL,
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    KEY idx_notifications_type (type),
-    KEY idx_notifications_role (recipient_role)
+    KEY idx_notifications_recipient (recipient_user_id, recipient_role),
+    KEY idx_notifications_startup (startup_id),
+    KEY idx_notifications_company (company_id),
+    KEY idx_notifications_provider (provider_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- 8. USUÁRIO DE TESTE (admin / 0000) E PERFIL VINCULADO
--- =============================================================================
-INSERT INTO users (email, password, name, cnpj, role)
-SELECT 'admin', '0000', 'Administrador', '00.000.000/0001-00', 'ADMIN'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin');
+-- ============================================================================
+-- 10. TABELA: chat_messages
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    context_type VARCHAR(40) NOT NULL,
+    context_id BIGINT NOT NULL,
+    sender_user_id BIGINT DEFAULT NULL,
+    sender_role VARCHAR(40) NOT NULL,
+    sender_name VARCHAR(255) DEFAULT NULL,
+    content TEXT NOT NULL,
+    attachment_name VARCHAR(255) DEFAULT NULL,
+    attachment_type VARCHAR(120) DEFAULT NULL,
+    attachment_data LONGTEXT DEFAULT NULL,
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    KEY idx_chat_messages_context (context_type, context_id),
+    KEY idx_chat_messages_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO startup_profiles (user_id, name, cnpj, receive_ai_recommendations)
-SELECT id, 'Startup Admin', '00.000.000/0001-00', b'1'
-FROM users WHERE email = 'admin'
-AND NOT EXISTS (SELECT 1 FROM startup_profiles WHERE user_id = (SELECT id FROM users WHERE email = 'admin' LIMIT 1));
-
--- =============================================================================
--- 9. CARGA INICIAL DE EMPRESAS E OPORTUNIDADES PARA O MATCHMAKING DA IA
--- =============================================================================
-INSERT INTO companies (name, type, description, tags)
-SELECT * FROM (
-    SELECT 'Empresa Alpha' AS name, 'EMPRESA' AS type,
-           'Grande conglomerado em busca de inovação aberta, inteligência operacional e automação de processos.' AS description,
-           'IA, SaaS, B2B, Dados, Automação' AS tags
-) AS tmp
-WHERE NOT EXISTS (SELECT 1 FROM companies WHERE name = 'Empresa Alpha') LIMIT 1;
-
-INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'edital', 'EDITAL', 'Edital Inova Startups 6ª Edição 2026',
-       'Apoio financeiro e aceleração para startups com soluções B2B.',
-       'Programa de inovação aberta para startups com soluções em dados, tecnologia aplicada e automação por IA. A oportunidade busca aplicações com potencial de validação em ambiente real e escalabilidade nacional.',
-       90, 'Inscrições abertas · Brasil · Remoto', 'IA • Dados • Automação • SaaS B2B',
-       'https://inovastartups.com.br/edital-inova-6a-edicao.pdf', 'bg-[#fff2b8] text-[#795900]', 'PUBLICADA', NULL
-WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'edital');
-
-INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'poc', 'POC', 'POC — Inteligência Operacional',
-       'Empresa procura solução de IA para operação.',
-       'Empresa Alpha busca startup para automatizar processos internos e testar inteligência operacional em um ambiente real com possibilidade de contrato corporativo.',
-       88, 'Resposta até sexta · Brasil · Híbrido', 'IA • Operações • Automação • B2B',
-       'https://empresa-alpha.com/poc', 'bg-[#d9f1e5] text-[#16734d]', 'PUBLICADA',
-       (SELECT id FROM companies WHERE name = 'Empresa Alpha' LIMIT 1)
-WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'poc');
-
-INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'evento', 'EVENTO', 'Startup Connect Recife',
-       'Networking com empresas e ecossistema local.',
-       'Evento para conectar startups, corporações e investidores em uma agenda de networking, rodadas de negócios e apresentação de pitches.',
-       85, '22/10/2026 · Recife · Presencial', 'Networking • Investimento • B2B • Ecossistema',
-       'https://startupconnect.com.br', 'bg-[#dff1f5] text-[#1e7080]', 'PUBLICADA', NULL
-WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'evento');
-
-INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'compra', 'COMPRA', 'Compra — Dados & Analytics',
-       'Demanda por plataforma de análise.',
-       'Demanda empresarial por contratação direta de plataforma de análise de dados e indicadores para apoiar decisões operacionais e estratégicas.',
-       86, 'Aberta · Brasil · Remoto', 'Dados • Analytics • SaaS • Gestão',
-       'https://compras.startin.com.br', 'bg-[#ffe1c3] text-[#975524]', 'PUBLICADA',
-       (SELECT id FROM companies WHERE name = 'Empresa Alpha' LIMIT 1)
-WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'compra');
-
-INSERT INTO opportunities (code, type, title, short_description, description, match_score, meta_info, tags, external_url, color, status, company_id)
-SELECT 'primeira-compra', 'PRIMEIRA_COMPRA', 'Primeira Compra — Automação Inteligente B2B',
-       'Contratação inicial validada para startups em fase de validação.',
-       'Oportunidade de Primeira Compra Corporativa da Empresa Alpha voltada a startups em estágio de Validação para implantação assistida e primeiro contrato comercial.',
-       89, 'Inscrições abertas · Brasil · Híbrido', 'IA • Automação • Primeira Compra • SaaS B2B',
-       'https://empresa-alpha.com/primeira-compra', 'bg-[#ede9fe] text-[#5b21b6]', 'PUBLICADA',
-       (SELECT id FROM companies WHERE name = 'Empresa Alpha' LIMIT 1)
-WHERE NOT EXISTS (SELECT 1 FROM opportunities WHERE code = 'primeira-compra');
+SET FOREIGN_KEY_CHECKS = 1;

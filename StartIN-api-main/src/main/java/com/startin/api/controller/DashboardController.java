@@ -15,9 +15,11 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final com.startin.api.service.ServiceProviderService providerService;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, com.startin.api.service.ServiceProviderService providerService) {
         this.dashboardService = dashboardService;
+        this.providerService = providerService;
     }
 
     @GetMapping("/summary")
@@ -30,5 +32,13 @@ public class DashboardController {
     @Operation(summary = "Retorna visão geral do dashboard corporativo da empresa (startups com match e POCs/Compras lançadas)")
     public ResponseEntity<Map<String, Object>> getCompanySummary(@RequestParam(required = false) Long companyId) {
         return ResponseEntity.ok(dashboardService.getCompanySummary(companyId));
+    }
+
+    @GetMapping("/provider-summary")
+    @Operation(summary = "Retorna visão geral do dashboard do prestador de serviços (resumo de conexões, startups recomendadas e atividades)")
+    public ResponseEntity<Map<String, Object>> getProviderSummary(
+            @RequestParam(required = false) Long providerId,
+            @RequestParam(required = false) Long userId) {
+        return ResponseEntity.ok(providerService.getProviderDashboardSummary(providerId, userId));
     }
 }

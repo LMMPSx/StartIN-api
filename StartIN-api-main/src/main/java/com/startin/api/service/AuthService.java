@@ -25,24 +25,74 @@ public class AuthService {
     private final UserRepository userRepository;
     private final StartupProfileRepository startupProfileRepository;
     private final CompanyRepository companyRepository;
+    private final com.startin.api.repository.ServiceProviderRepository providerRepository;
 
     public AuthService(
             UserRepository userRepository,
             StartupProfileRepository startupProfileRepository,
-            CompanyRepository companyRepository) {
+            CompanyRepository companyRepository,
+            com.startin.api.repository.ServiceProviderRepository providerRepository) {
         this.userRepository = userRepository;
         this.startupProfileRepository = startupProfileRepository;
         this.companyRepository = companyRepository;
+        this.providerRepository = providerRepository;
+    }
+
+    public static boolean isValidCnpj(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String digits = raw.replaceAll("\\D", "");
+        if (digits.length() != 14) return false;
+        if (digits.matches("(\\d)\\1{13}")) return false;
+
+        int[] w1 = {5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
+        int[] w2 = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
+
+        int sum1 = 0;
+        for (int i = 0; i < 12; i++) {
+            sum1 += Character.getNumericValue(digits.charAt(i)) * w1[i];
+        }
+        int rem1 = sum1 % 11;
+        int d1 = rem1 < 2 ? 0 : 11 - rem1;
+        if (d1 != Character.getNumericValue(digits.charAt(12))) return false;
+
+        int sum2 = 0;
+        for (int i = 0; i < 13; i++) {
+            sum2 += Character.getNumericValue(digits.charAt(i)) * w2[i];
+        }
+        int rem2 = sum2 % 11;
+        int d2 = rem2 < 2 ? 0 : 11 - rem2;
+        return d2 == Character.getNumericValue(digits.charAt(13));
+    }
+
+    public static String formatCnpj(String raw) {
+        if (raw == null) return "";
+        String digits = raw.replaceAll("\\D", "");
+        if (digits.length() != 14) return raw.trim();
+        return String.format("%s.%s.%s/%s-%s",
+                digits.substring(0, 2),
+                digits.substring(2, 5),
+                digits.substring(5, 8),
+                digits.substring(8, 12),
+                digits.substring(12, 14));
     }
 
     @Transactional
     public AuthResponseDTO signup(SignupRequestDTO request) {
+        if (request.getEmail() == null || request.getEmail().isBlank() || !request.getEmail().contains("@")) {
+            return AuthResponseDTO.error("Informe um endereço de e-mail válido.");
+        }
         if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
             return AuthResponseDTO.error("Este e-mail já está cadastrado.");
         }
+        if (!isValidCnpj(request.getCnpj())) {
+            return AuthResponseDTO.error("Informe um CNPJ autêntico e válido com exatos 14 dígitos (00.000.000/0000-00). A plataforma opera exclusivamente com CNPJ.");
+        }
+        String formattedCnpj = formatCnpj(request.getCnpj());
+        request.setCnpj(formattedCnpj);
 
         UserRole resolvedRole = UserRole.fromString(request.getAccountType());
         boolean isCompany = resolvedRole == UserRole.COMPANY;
+        boolean isProvider = resolvedRole == UserRole.PROVIDER;
 
         User user = new User();
         user.setEmail(request.getEmail().toLowerCase().trim());
@@ -58,9 +108,24 @@ public class AuthService {
 
         Long startupProfileId = null;
         Long companyId = null;
-        String accountType = isCompany ? "COMPANY" : "STARTUP";
+        Long providerId = null;
+        String accountType = isProvider ? "PROVIDER" : (isCompany ? "COMPANY" : "STARTUP");
 
-        if (isCompany) {
+        if (isProvider) {
+            com.startin.api.model.ServiceProvider provider = new com.startin.api.model.ServiceProvider();
+            provider.setUser(user);
+            provider.setName(defaultName);
+            provider.setProviderType("PROFISSIONAL");
+            provider.setCategory("Design");
+            provider.setAvailability("Disponível");
+            provider.setLocation("Recife, PE");
+            provider.setMainService("");
+            provider.setDescription("");
+            provider.setToolsAndSkills("");
+            provider.setTags("");
+            provider = providerRepository.save(provider);
+            providerId = provider.getId();
+        } else if (isCompany) {
             Company company = new Company();
             company.setUser(user);
             company.setName(request.getName() != null && !request.getName().isBlank() ? request.getName().trim() : "Minha Empresa");
@@ -87,7 +152,7 @@ public class AuthService {
         }
 
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), startupProfileId, companyId, accountType);
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), startupProfileId, companyId, providerId, accountType);
     }
 
     @Transactional
@@ -102,17 +167,38 @@ public class AuthService {
             return AuthResponseDTO.error("E-mail ou senha inválidos.");
         }
 
+        boolean isProvider = user.getRole() == UserRole.PROVIDER;
         boolean isCompany = user.getRole() == UserRole.COMPANY;
+        Optional<com.startin.api.model.ServiceProvider> existingProvider = providerRepository.findByUserId(user.getId());
         Optional<Company> existingCompany = companyRepository.findByUserId(user.getId());
-        if (existingCompany.isPresent() && user.getRole() == UserRole.COMPANY) {
+
+        if (existingProvider.isPresent()) {
+            isProvider = true;
+        } else if (existingCompany.isPresent() && user.getRole() == UserRole.COMPANY) {
             isCompany = true;
         }
 
         Long startupProfileId = null;
         Long companyId = null;
+        Long providerId = null;
         String avatar = user.getAvatarUrl();
 
-        if (isCompany) {
+        if (isProvider) {
+            com.startin.api.model.ServiceProvider provider = existingProvider.orElseGet(() -> {
+                com.startin.api.model.ServiceProvider p = new com.startin.api.model.ServiceProvider();
+                p.setUser(user);
+                p.setName(user.getName() != null ? user.getName() : "Prestador de Serviços");
+                p.setProviderType("PROFISSIONAL");
+                p.setCategory("Design");
+                p.setAvailability("Disponível");
+                p.setLocation("Recife, PE");
+                p.setMainService("");
+                p.setDescription("");
+                return providerRepository.save(p);
+            });
+            providerId = provider.getId();
+            if (avatar == null) avatar = provider.getAvatarUrl();
+        } else if (isCompany) {
             Company company = existingCompany.orElseGet(() -> {
                 Company c = new Company();
                 c.setUser(user);
@@ -145,25 +231,34 @@ public class AuthService {
             }
         }
 
-        String accountType = isCompany ? "COMPANY" : "STARTUP";
+        String accountType = isProvider ? "PROVIDER" : (isCompany ? "COMPANY" : "STARTUP");
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, startupProfileId, companyId, accountType);
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, startupProfileId, companyId, providerId, accountType);
     }
 
     public Optional<AuthResponseDTO> getUserInfo(Long userId) {
         return userRepository.findById(userId).map(user -> {
             Optional<StartupProfile> profileOpt = startupProfileRepository.findByUserId(user.getId());
             Optional<Company> companyOpt = companyRepository.findByUserId(user.getId());
+            Optional<com.startin.api.model.ServiceProvider> providerOpt = providerRepository.findByUserId(user.getId());
+
             Long profileId = profileOpt.map(StartupProfile::getId).orElse(null);
             Long companyId = companyOpt.map(Company::getId).orElse(null);
-            boolean isCompany = user.getRole() == UserRole.COMPANY;
-            String accountType = isCompany ? "COMPANY" : "STARTUP";
+            Long providerId = providerOpt.map(com.startin.api.model.ServiceProvider::getId).orElse(null);
+
+            boolean isProvider = user.getRole() == UserRole.PROVIDER || providerOpt.isPresent();
+            boolean isCompany = !isProvider && (user.getRole() == UserRole.COMPANY || companyOpt.isPresent());
+            String accountType = isProvider ? "PROVIDER" : (isCompany ? "COMPANY" : "STARTUP");
+
             String avatar = user.getAvatarUrl() != null
                     ? user.getAvatarUrl()
-                    : (isCompany
-                        ? companyOpt.map(Company::getAvatarUrl).orElse(null)
-                        : profileOpt.map(StartupProfile::getAvatarUrl).orElse(null));
-            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, profileId, companyId, accountType);
+                    : (isProvider
+                        ? providerOpt.map(com.startin.api.model.ServiceProvider::getAvatarUrl).orElse(null)
+                        : (isCompany
+                            ? companyOpt.map(Company::getAvatarUrl).orElse(null)
+                            : profileOpt.map(StartupProfile::getAvatarUrl).orElse(null)));
+
+            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, profileId, companyId, providerId, accountType);
         });
     }
 
