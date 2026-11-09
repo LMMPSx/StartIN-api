@@ -114,6 +114,12 @@ public class AiController {
         return ResponseEntity.ok(aiIntegrationService.verifyTractionPdf(payload));
     }
 
+    @PostMapping("/extract-provider-resume")
+    @Operation(summary = "Lê o currículo em PDF do prestador de serviços e extrai categoria, serviço principal, tecnologias e descrição prévia em 1ª pessoa")
+    public ResponseEntity<Map<String, Object>> extractProviderResume(@RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(aiIntegrationService.extractProviderResume(payload));
+    }
+
     @PostMapping("/daily-sync")
     @Operation(summary = "Recebe o JSON diário das 08:00 da manhã gerado pela IA Python (scraping + matches) e persiste no MySQL")
     public ResponseEntity<Map<String, Object>> receiveDailyAiJson(@RequestBody AiDailySyncPayloadDTO payload) {

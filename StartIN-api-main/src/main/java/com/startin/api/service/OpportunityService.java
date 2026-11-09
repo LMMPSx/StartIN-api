@@ -140,34 +140,43 @@ public class OpportunityService {
         opp.setMatchScore(90);
 
         if (dto.getCompanyId() != null) {
+            com.startin.api.model.Company comp = companyRepository.findById(dto.getCompanyId()).orElse(null);
+            boolean isPro = comp != null && comp.getUser() != null && "PRO".equalsIgnoreCase(comp.getUser().getPlan());
+            int maxMonthly = isPro ? 15 : 5;
             java.time.YearMonth currentMonth = java.time.YearMonth.now();
             long monthlyCount = opportunityRepository.findByCompanyIdOrderByIdDesc(dto.getCompanyId()).stream()
                     .filter(o -> o.getCreatedAt() == null || java.time.YearMonth.from(o.getCreatedAt()).equals(currentMonth))
                     .count();
-            if (monthlyCount >= 10) {
-                throw new IllegalStateException("Limite mensal atingido: sua conta pode lançar até 10 oportunidades por mês.");
+            if (monthlyCount >= maxMonthly) {
+                throw new IllegalStateException("Limite mensal atingido: sua conta no Plano " + (isPro ? "Pro" : "Free") + " pode lançar até " + maxMonthly + " oportunidades por mês.");
             }
-            companyRepository.findById(dto.getCompanyId()).ifPresent(c -> {
-                opp.setCompany(c);
-                if (c.getUser() != null && "PRO".equalsIgnoreCase(c.getUser().getPlan())) {
+            if (comp != null) {
+                opp.setCompany(comp);
+                if (isPro) {
                     opp.setProMember(true);
                 }
-            });
+            }
         }
         if (dto.getStartupId() != null) {
+            com.startin.api.model.StartupProfile st = startupProfileRepository.findById(dto.getStartupId())
+                    .or(() -> startupProfileRepository.findByUserId(dto.getStartupId()))
+                    .orElse(null);
+            boolean isPro = st != null && st.getUser() != null && "PRO".equalsIgnoreCase(st.getUser().getPlan());
+            int maxMonthly = isPro ? 15 : 5;
+            Long effectiveStartupId = st != null ? st.getId() : dto.getStartupId();
             java.time.YearMonth currentMonth = java.time.YearMonth.now();
-            long monthlyCount = opportunityRepository.findByStartupIdOrderByIdDesc(dto.getStartupId()).stream()
+            long monthlyCount = opportunityRepository.findByStartupIdOrderByIdDesc(effectiveStartupId).stream()
                     .filter(o -> o.getCreatedAt() == null || java.time.YearMonth.from(o.getCreatedAt()).equals(currentMonth))
                     .count();
-            if (monthlyCount >= 10) {
-                throw new IllegalStateException("Limite mensal atingido: sua startup pode lançar até 10 oportunidades por mês.");
+            if (monthlyCount >= maxMonthly) {
+                throw new IllegalStateException("Limite mensal atingido: sua startup no Plano " + (isPro ? "Pro" : "Free") + " pode lançar até " + maxMonthly + " oportunidades por mês.");
             }
-            startupProfileRepository.findById(dto.getStartupId()).ifPresent(st -> {
+            if (st != null) {
                 opp.setStartup(st);
-                if (st.getUser() != null && "PRO".equalsIgnoreCase(st.getUser().getPlan())) {
+                if (isPro) {
                     opp.setProMember(true);
                 }
-            });
+            }
         }
         if (dto.getTargetCategory() != null) {
             opp.setTargetCategory(dto.getTargetCategory());

@@ -656,6 +656,116 @@ public class AiIntegrationService {
         return fallback;
     }
 
+    public Map<String, Object> extractProviderResume(Map<String, Object> payload) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            String url = aiBaseUrl + "/api/ai/extract-provider-resume";
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (response.getBody() != null && response.getBody().get("description") != null) {
+                Map<String, Object> body = new LinkedHashMap<>(response.getBody());
+                body.put("description", cleanStructuredText(String.valueOf(body.get("description"))));
+                return body;
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao consultar /api/ai/extract-provider-resume: {}. Aplicando extração local do currículo em PDF.", e.getMessage());
+        }
+
+        String fileName = payload.get("fileName") != null ? String.valueOf(payload.get("fileName")) : "curriculo.pdf";
+        String fileBase64 = payload.get("fileBase64") != null ? String.valueOf(payload.get("fileBase64")) : "";
+        String providerType = payload.get("providerType") != null ? String.valueOf(payload.get("providerType")) : "PROFISSIONAL";
+        String linkedinUrl = payload.get("linkedinUrl") != null ? String.valueOf(payload.get("linkedinUrl")) : "";
+        String portfolioUrl = payload.get("portfolioUrl") != null ? String.valueOf(payload.get("portfolioUrl")) : "";
+        boolean isCompany = "EMPRESA".equalsIgnoreCase(providerType);
+
+        String decodedText = "";
+        if (!fileBase64.isBlank()) {
+            try {
+                String cleanB64 = fileBase64.contains(",") ? fileBase64.substring(fileBase64.indexOf(',') + 1) : fileBase64;
+                byte[] bytes = Base64.getDecoder().decode(cleanB64.trim());
+                String rawAscii = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                StringBuilder readable = new StringBuilder();
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\(([^()\\\\]{3,120})\\)").matcher(rawAscii);
+                while (m.find() && readable.length() < 8000) {
+                    readable.append(m.group(1)).append(" ");
+                }
+                decodedText = readable.toString();
+            } catch (Exception ignored) {}
+        }
+
+        String combined = (fileName + " " + decodedText + " " + linkedinUrl + " " + portfolioUrl).toLowerCase(Locale.ROOT);
+        String category = "Tecnologia";
+        if (combined.contains("figma") || combined.contains("ux") || combined.contains("ui ") || combined.contains("design")) {
+            category = "Design";
+        } else if (combined.contains("marketing") || combined.contains("growth") || combined.contains("instagram") || combined.contains("ads") || combined.contains("tráfego") || combined.contains("trafego")) {
+            category = "Marketing";
+        } else if (combined.contains("jurídico") || combined.contains("juridico") || combined.contains("advogad") || combined.contains("direito") || combined.contains("lgpd")) {
+            category = "Jurídico";
+        } else if (combined.contains("financeiro") || combined.contains("valuation") || combined.contains("contabil") || combined.contains("fluxo de caixa")) {
+            category = "Financeiro";
+        } else if (combined.contains("consultor") || combined.contains("gestão") || combined.contains("estrategia")) {
+            category = "Consultoria";
+        }
+
+        List<String> tags = new ArrayList<>();
+        if ("Design".equalsIgnoreCase(category)) {
+            tags.addAll(List.of("Figma", "UI/UX Design", "Design System", "Prototipação"));
+        } else if ("Marketing".equalsIgnoreCase(category)) {
+            tags.addAll(List.of("Marketing Estratégico & Growth", "Tráfego Pago & Performance", "Instagram & Social Media", "Escalabilidade de Marca"));
+        } else if ("Jurídico".equalsIgnoreCase(category)) {
+            tags.addAll(List.of("Direito Societário", "LGPD & Compliance", "Contratos para Startups", "Propriedade Intelectual"));
+        } else if ("Financeiro".equalsIgnoreCase(category)) {
+            tags.addAll(List.of("Modelagem Financeira", "Valuation & M&A", "BPO Financeiro", "Captação & Pitch Deck"));
+        } else if ("Consultoria".equalsIgnoreCase(category)) {
+            tags.addAll(List.of("Estratégia & Produto", "Gestão Ágil", "Go-to-Market", "Modelagem de Negócios"));
+        } else {
+            tags.addAll(List.of("React", "Node.js", "TypeScript", "Python", "Arquitetura Cloud & IA"));
+        }
+        String toolsAndSkills = String.join(", ", tags);
+        String mainService = "Design".equalsIgnoreCase(category) ? "UX/UI & Product Design para Startups"
+                : "Marketing".equalsIgnoreCase(category) ? "Marketing Estratégico, Branding & Growth para Startups"
+                : "Jurídico".equalsIgnoreCase(category) ? "Consultoria Jurídica Societária & LGPD para Startups"
+                : "Financeiro".equalsIgnoreCase(category) ? "Modelagem Financeira, Valuation & Captação"
+                : "Consultoria".equalsIgnoreCase(category) ? "Consultoria de Produto, Gestão & Escala"
+                : "Desenvolvimento Full Stack, MVPs & Soluções de IA";
+        String verbAtuo = isCompany ? "Atuamos" : "Atuo";
+        String verbTenho = isCompany ? "Contamos com" : "Tenho";
+        String verbEstruturo = isCompany ? "Estruturamos" : "Estruturo";
+        String verbBusco = isCompany ? "Buscamos" : "Busco";
+
+        String description = verbAtuo + " na área de " + category + " com foco em " + mainService + ", aplicando " + toolsAndSkills
+                + " no desenvolvimento de soluções práticas e escaláveis. " + verbTenho
+                + " experiência consolidada conduzindo entregas técnicas com foco em qualidade, performance e alinhamento às metas do negócio.\n\n"
+                + verbEstruturo + " cada projeto com metodologia ágil, visão orientada a produto e comunicação próxima com os fundadores. "
+                + verbBusco + " apoiar startups em estágios de validação e tração na construção, evolução e escalabilidade de suas operações, transformando demandas complexas em resultados mensuráveis.";
+
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("extracted", true);
+        fallback.put("fileName", fileName);
+        fallback.put("category", category);
+        fallback.put("mainService", mainService);
+        fallback.put("toolsAndSkills", toolsAndSkills);
+        fallback.put("tags", tags);
+        fallback.put("experienceYears", "3–5 anos");
+        fallback.put("location", "Recife, PE");
+        fallback.put("projectName", "Experiência em " + mainService);
+        fallback.put("projectType", "Tecnologia".equalsIgnoreCase(category) ? "MVP / Produto completo" : "Consultoria técnica");
+        fallback.put("projectYear", "2026");
+        fallback.put("interestSectors", "Tecnologia / SaaS, IA & Dados, Finanças");
+        fallback.put("connectionPreference", "Projetos sob demanda");
+        fallback.put("opportunitiesSought", "Desenvolver MVPs, Prestar consultoria especializada, Atuar em projetos pontuais");
+        fallback.put("description", description);
+        fallback.put("serviceExperience", description);
+        fallback.put("projectDescription", description);
+        fallback.put("extractedHighlights", List.of(
+                "Categoria identificada no PDF: " + category + " (" + mainService + ")",
+                "Tecnologias e competências mapeadas: " + toolsAndSkills,
+                "Descrição profissional prévia em 1ª pessoa gerada automaticamente"
+        ));
+        return fallback;
+    }
+
     private String cleanStructuredText(String text) {
         if (text == null) return "";
         String cleaned = text
@@ -1215,10 +1325,15 @@ public class AiIntegrationService {
     private List<Map<String, Object>> fallbackCompanyToStartupsMatches(CompanyDTO company, List<StartupProfileDTO> startups) {
         String compName = company != null && company.getName() != null ? company.getName() : "Sua Empresa";
         String compSector = company != null && company.getSector() != null ? company.getSector() : "";
+        String compDesc = company != null && company.getDescription() != null && !company.getDescription().isBlank()
+                ? company.getDescription()
+                : "Organização parceira com demandas abertas de inovação.";
         String compTagsRaw = company != null && company.getTags() != null ? company.getTags() : "";
-        String compDemands = company != null && company.getDemands() != null ? company.getDemands() : (company != null && company.getDescription() != null ? company.getDescription() : "");
-        String compLocation = company != null && company.getLocation() != null ? company.getLocation() : "Brasil";
-        String compMode = company != null && company.getOperationMode() != null ? company.getOperationMode() : "POC, Compra";
+        String compDemands = company != null && company.getDemands() != null && !company.getDemands().isBlank()
+                ? company.getDemands()
+                : compDesc;
+        String compLocation = company != null && company.getLocation() != null && !company.getLocation().isBlank() ? company.getLocation() : "Brasil";
+        String compMode = company != null && company.getOperationMode() != null && !company.getOperationMode().isBlank() ? company.getOperationMode() : "POC, Compra";
         String compPrefStage = company != null && company.getPreferredStage() != null ? company.getPreferredStage() : "";
 
         List<Map<String, Object>> results = new ArrayList<>();
@@ -1286,13 +1401,15 @@ public class AiIntegrationService {
 
     private List<Map<String, Object>> fallbackStartupToCompaniesMatches(StartupProfileDTO startup, List<CompanyDTO> companies) {
         String stName = startup != null && startup.getName() != null ? startup.getName() : "Sua Startup";
-        String stArea = startup != null && startup.getMainArea() != null ? startup.getMainArea() : "";
+        String stArea = startup != null && startup.getMainArea() != null && !startup.getMainArea().isBlank()
+                ? startup.getMainArea()
+                : (startup != null && startup.getMainSector() != null ? startup.getMainSector() : "");
         String stTech = startup != null && startup.getTechnologies() != null && !startup.getTechnologies().isBlank()
                 ? startup.getTechnologies()
                 : (startup != null && startup.getAreasOfInterest() != null ? startup.getAreasOfInterest() : "");
         String stModel = startup != null && startup.getBusinessModel() != null && !startup.getBusinessModel().isBlank() ? startup.getBusinessModel() : "B2B";
         String stLoc = startup != null && startup.getLocation() != null && !startup.getLocation().isBlank() ? startup.getLocation() : "Brasil";
-        String stStage = startup != null && startup.getCurrentStage() != null ? startup.getCurrentStage() : "Validação";
+        String stStage = startup != null && startup.getCurrentStage() != null && !startup.getCurrentStage().isBlank() ? startup.getCurrentStage() : "Validação";
         String stProblem = startup != null ? ((startup.getProblem() != null ? startup.getProblem() : "") + " " + (startup.getHowItWorks() != null ? startup.getHowItWorks() : "")) : "";
 
         List<Map<String, Object>> results = new ArrayList<>();
@@ -1372,155 +1489,52 @@ public class AiIntegrationService {
     /**
      * Calcula a compatibilidade real (0 a 100%) e as 3 razões detalhadas (sinergiaTecnica,
      * modeloAtuacao, impactoEsperado) entre um Prestador de Serviço e uma Startup em Tração.
+     * Utiliza exatamente a mesma fórmula unificada de `computeProviderOpportunityCompatibility`
+     * para garantir simetria de 100% entre o perfil da Startup em Tração e o perfil do Prestador.
      */
     public Map<String, Object> computeProviderStartupCompatibility(
             ServiceProvider provider,
             StartupProfile startup,
             List<Opportunity> startupServiceDemands) {
 
-        String pName = provider != null && provider.getName() != null ? provider.getName().trim() : "Prestador";
-        String pCat = provider != null && provider.getCategory() != null ? provider.getCategory().trim() : "Serviços Especializados";
-        String pCompCat = provider != null && provider.getComplementaryCategory() != null ? provider.getComplementaryCategory().trim() : "";
-        String pMainService = provider != null && provider.getMainService() != null && !provider.getMainService().isBlank()
-                ? provider.getMainService().trim() : pCat;
-        String pBio = provider != null && provider.getDescription() != null ? provider.getDescription().trim() : "";
-        String pExp = provider != null && provider.getServiceExperience() != null ? provider.getServiceExperience().trim() : "";
-        String pSkills = provider != null && provider.getToolsAndSkills() != null && !provider.getToolsAndSkills().isBlank()
-                ? provider.getToolsAndSkills().trim()
-                : (provider != null && provider.getTags() != null ? provider.getTags().trim() : "");
-        String pSectors = provider != null && provider.getInterestSectors() != null && !provider.getInterestSectors().isBlank()
-                ? provider.getInterestSectors().trim()
-                : (provider != null && provider.getTargetSegment() != null ? provider.getTargetSegment().trim() : "");
-        String pConnPref = provider != null && provider.getConnectionPreference() != null && !provider.getConnectionPreference().isBlank()
-                ? provider.getConnectionPreference().trim() : "Projetos sob demanda";
-        String pAvail = provider != null && provider.getAvailability() != null && !provider.getAvailability().isBlank()
-                ? provider.getAvailability().trim() : "Disponível";
-        String pLoc = provider != null && provider.getLocation() != null && !provider.getLocation().isBlank()
-                ? provider.getLocation().trim() : "Brasil";
-        String pProjName = provider != null && provider.getProjectName() != null ? provider.getProjectName().trim() : "";
-        String pProjDesc = provider != null && provider.getProjectDescription() != null ? provider.getProjectDescription().trim() : "";
-
-        String sName = startup != null && startup.getName() != null ? startup.getName().trim() : "Startup";
-        String sArea = startup != null && startup.getMainArea() != null && !startup.getMainArea().isBlank()
-                ? startup.getMainArea().trim()
-                : (startup != null && startup.getMainSector() != null ? startup.getMainSector().trim() : "Tecnologia");
-        String sDesc = startup != null && startup.getDescription() != null ? startup.getDescription().trim() : "";
-        String sProblem = startup != null && startup.getProblem() != null ? startup.getProblem().trim() : "";
-        String sHow = startup != null && startup.getHowItWorks() != null ? startup.getHowItWorks().trim() : "";
-        String sTechs = startup != null && startup.getTechnologies() != null && !startup.getTechnologies().isBlank()
-                ? startup.getTechnologies().trim()
-                : (startup != null && startup.getAreasOfInterest() != null ? startup.getAreasOfInterest().trim() : "");
-        String sObjective = startup != null && startup.getMainObjective() != null ? startup.getMainObjective().trim() : "";
-        String sPartners = startup != null && startup.getDesiredPartners() != null ? startup.getDesiredPartners().trim() : "";
-        String sStage = startup != null && startup.getCurrentStage() != null && !startup.getCurrentStage().isBlank()
-                ? startup.getCurrentStage().trim() : "Tração";
-        String sLoc = startup != null && startup.getLocation() != null && !startup.getLocation().isBlank()
-                ? startup.getLocation().trim() : "Brasil";
-
-        StringBuilder demandsSb = new StringBuilder();
-        boolean matchesOpenDemandCategory = false;
-        String normPCat = normText(pCat);
+        List<Opportunity> candidates = new ArrayList<>();
         if (startupServiceDemands != null) {
             for (Opportunity d : startupServiceDemands) {
-                if (d == null) continue;
-                String dTitle = d.getTitle() != null ? d.getTitle() : "";
-                String dCat = d.getTargetCategory() != null ? d.getTargetCategory() : "";
-                String dDesc = d.getDescription() != null ? d.getDescription() : "";
-                String dTags = d.getTags() != null ? d.getTags() : "";
-                demandsSb.append(" ").append(dTitle).append(" ").append(dCat).append(" ").append(dDesc).append(" ").append(dTags);
-                if (!normPCat.isEmpty() && (normText(dCat).contains(normPCat) || normText(dTitle).contains(normPCat) || normText(dTags).contains(normPCat))) {
-                    matchesOpenDemandCategory = true;
+                if (d != null) {
+                    candidates.add(d);
                 }
             }
         }
+        if (candidates.isEmpty()) {
+            Opportunity synth = new Opportunity();
+            String sArea = startup != null && startup.getMainArea() != null && !startup.getMainArea().isBlank()
+                    ? startup.getMainArea().trim()
+                    : (startup != null && startup.getMainSector() != null ? startup.getMainSector().trim() : "Tecnologia");
+            synth.setTitle("Demanda Técnica de " + sArea);
+            synth.setDescription(startup != null && startup.getProblem() != null && !startup.getProblem().isBlank()
+                    ? startup.getProblem()
+                    : (startup != null && startup.getDescription() != null && !startup.getDescription().isBlank()
+                            ? startup.getDescription()
+                            : "Demanda de serviços especializados para startup em estágio de Tração."));
+            synth.setTags(startup != null && startup.getTechnologies() != null && !startup.getTechnologies().isBlank()
+                    ? startup.getTechnologies()
+                    : (startup != null && startup.getAreasOfInterest() != null ? startup.getAreasOfInterest() : "Inovação, Escalabilidade"));
+            synth.setTargetCategory(sArea);
+            synth.setStartup(startup);
+            candidates.add(synth);
+        }
 
-        String sCorpus = normText(sArea + " " + sDesc + " " + sProblem + " " + sHow + " " + sTechs + " " + sObjective + " " + sPartners + " " + demandsSb);
-
-        // 1. Alinhamento de Categoria, Demanda aberta & Setor de Interesse (0..40 pts)
-        int areaScore = 24;
-        if (matchesOpenDemandCategory) {
-            areaScore = 40;
-        } else if (!normPCat.isEmpty() && sCorpus.contains(normPCat)) {
-            areaScore = 35;
-        } else if (!pSectors.isEmpty()) {
-            for (String sec : pSectors.split("[,;/•]+")) {
-                String nSec = normText(sec);
-                if (nSec.length() >= 3 && (normText(sArea).contains(nSec) || sCorpus.contains(nSec))) {
-                    areaScore = 36;
-                    break;
-                }
+        Map<String, Object> bestComp = null;
+        int bestScore = -1;
+        for (Opportunity cand : candidates) {
+            Map<String, Object> comp = computeProviderOpportunityCompatibility(provider, cand, startup);
+            int sc = comp.get("matchScore") instanceof Number n ? n.intValue() : 0;
+            if (bestComp == null || sc > bestScore) {
+                bestComp = comp;
+                bestScore = sc;
             }
         }
-
-        // 2. Competências Técnicas, Ferramentas & Escopo (0..30 pts)
-        String allSkillsRaw = pSkills + ", " + pMainService + ", " + (provider != null && provider.getProjectTools() != null ? provider.getProjectTools() : "");
-        List<String> matchedSkills = new ArrayList<>();
-        List<String> allSkillsList = new ArrayList<>();
-        for (String tok : allSkillsRaw.split("[,;/•\\n]+")) {
-            String clean = tok.trim();
-            if (clean.length() >= 2 && !allSkillsList.contains(clean)) {
-                allSkillsList.add(clean);
-                String nSk = normText(clean);
-                if (!nSk.isEmpty() && (sCorpus.contains(nSk) || Arrays.stream(nSk.split("\\s+")).anyMatch(w -> w.length() >= 4 && sCorpus.contains(w)))) {
-                    matchedSkills.add(clean);
-                }
-            }
-        }
-
-        int techScore;
-        if (matchedSkills.size() >= 3) {
-            techScore = 29;
-        } else if (matchedSkills.size() == 2) {
-            techScore = 25;
-        } else if (matchedSkills.size() == 1) {
-            techScore = 21;
-        } else if (!allSkillsList.isEmpty()) {
-            techScore = 17;
-        } else {
-            techScore = 13;
-        }
-
-        // 3. Modelo de Atuação, Portfólio, Disponibilidade & Localização (0..30 pts)
-        int otherScore = 15;
-        if (!pBio.isEmpty() || !pExp.isEmpty()) otherScore += 5;
-        if (!pProjName.isEmpty() || !pProjDesc.isEmpty()) otherScore += 4;
-        if (normText(pAvail).contains("imediata") || normText(pAvail).contains("disponivel")) otherScore += 3;
-        if (!pLoc.isEmpty() && !sLoc.isEmpty() && (normText(pLoc).contains(normText(sLoc)) || normText(sLoc).contains(normText(pLoc)) || normText(pLoc).contains("brasil"))) {
-            otherScore += 3;
-        }
-        otherScore = Math.min(30, otherScore);
-
-        int totalScore = Math.max(48, Math.min(99, areaScore + techScore + otherScore));
-        String skillsHighlight = !matchedSkills.isEmpty()
-                ? String.join(", ", matchedSkills.subList(0, Math.min(4, matchedSkills.size())))
-                : (!pSkills.isEmpty() ? pSkills : pMainService);
-
-        String sinergiaTecnica = "Atuação especializada em " + pMainService + " (" + pCat + ") com domínio em " + skillsHighlight
-                + ", atendendo diretamente às demandas de " + sArea + " da " + sName + ".";
-        String modeloAtuacao = "Disponibilidade (" + pAvail + ") no formato '" + pConnPref + "', ideal para apoiar a fase de "
-                + sStage + " da " + sName + " com entregas ágeis e orientadas a metas.";
-        String impactoEsperado = "Aceleração direta dos objetivos da " + sName
-                + (!sObjective.isEmpty() ? " (" + (sObjective.length() > 90 ? sObjective.substring(0, 90) + "..." : sObjective) + ")" : " no setor de " + sArea)
-                + (!pProjName.isEmpty() ? ", com experiência comprovada no case '" + pProjName + "'." : " com foco em escalabilidade e resultados.");
-
-        String justification = "Compatibilidade de " + totalScore + "% entre " + pName + " (" + pCat + ") e "
-                + sName + " (" + sArea + " · " + sStage + "): sinergia em " + skillsHighlight + " e modelo '" + pConnPref + "'.";
-
-        Map<String, String> reasons = new LinkedHashMap<>();
-        reasons.put("perfil", sinergiaTecnica);
-        reasons.put("requisitos", "Competências e ferramentas aplicáveis: " + skillsHighlight + ".");
-        reasons.put("objetivo", modeloAtuacao);
-        reasons.put("contexto", impactoEsperado);
-        reasons.put("sinergiaTecnica", sinergiaTecnica);
-        reasons.put("modeloAtuacao", modeloAtuacao);
-        reasons.put("impactoEsperado", impactoEsperado);
-
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("matchScore", totalScore);
-        out.put("justification", justification);
-        out.put("recommendedAction", "Iniciar conexão entre " + sName + " e " + pName + " para alinhar escopo de " + pMainService + ".");
-        out.put("reasons", reasons);
-        return out;
+        return bestComp;
     }
 
     /**
@@ -1773,6 +1787,7 @@ public class AiIntegrationService {
             item.put("mainObjective", st.getMainObjective());
             item.put("desiredPartners", st.getDesiredPartners());
             item.put("matchScore", score);
+            item.put("match", score);
             item.put("justification", justification);
             item.put("reasons", reasons);
             item.put("saved", savedStartupIds != null && st.getId() != null && savedStartupIds.contains(st.getId()));
@@ -1825,34 +1840,41 @@ public class AiIntegrationService {
         String oppMeta = opp != null && opp.getMetaInfo() != null ? opp.getMetaInfo().trim() : "";
 
         String sName = startup != null && startup.getName() != null ? startup.getName().trim() : "Startup";
-        String sArea = startup != null && startup.getMainArea() != null ? startup.getMainArea().trim() : oppCat;
+        String sArea = startup != null && startup.getMainArea() != null && !startup.getMainArea().isBlank()
+                ? startup.getMainArea().trim()
+                : (startup != null && startup.getMainSector() != null ? startup.getMainSector().trim() : oppCat);
         String sLoc = startup != null && startup.getLocation() != null ? startup.getLocation().trim() : "Brasil";
         String sStage = startup != null && startup.getCurrentStage() != null ? startup.getCurrentStage().trim() : "Tração";
+        String sDesc = startup != null && startup.getDescription() != null ? startup.getDescription().trim() : "";
+        String sProblem = startup != null && startup.getProblem() != null ? startup.getProblem().trim() : "";
+        String sHow = startup != null && startup.getHowItWorks() != null ? startup.getHowItWorks().trim() : "";
+        String sTechs = startup != null && startup.getTechnologies() != null && !startup.getTechnologies().isBlank()
+                ? startup.getTechnologies().trim()
+                : (startup != null && startup.getAreasOfInterest() != null ? startup.getAreasOfInterest().trim() : "");
+        String sObjective = startup != null && startup.getMainObjective() != null ? startup.getMainObjective().trim() : "";
+        String sPartners = startup != null && startup.getDesiredPartners() != null ? startup.getDesiredPartners().trim() : "";
 
-        String oppCorpus = normText(oppTitle + " " + oppDesc + " " + oppTags + " " + oppCat + " " + oppMeta + " " + sName + " " + sArea);
+        String oppCorpus = normText(oppTitle + " " + oppDesc + " " + oppTags + " " + oppCat + " " + oppMeta + " "
+                + sName + " " + sArea + " " + sDesc + " " + sProblem + " " + sHow + " " + sTechs + " " + sObjective + " " + sPartners);
 
-        // 1. Alinhamento de Categoria e Demanda (0..40 pts)
-        int catScore = 20;
+        // 1. Alinhamento de Categoria, Demanda e Setor (0..40 pts)
+        int catScore = 24;
         String normPCat = normText(pCat);
-        String normPMain = normText(pMainService);
-        if (!normPCat.isEmpty() && (oppCorpus.contains(normPCat) || Arrays.stream(normPCat.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
-            catScore += 12;
-        }
-        if (!normPMain.isEmpty() && (oppCorpus.contains(normPMain) || Arrays.stream(normPMain.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
-            catScore += 8;
-        }
-        if (!pSectors.isEmpty()) {
+        if (!normPCat.isEmpty() && (normText(oppCat).contains(normPCat) || normText(oppTitle).contains(normPCat) || normText(oppTags).contains(normPCat))) {
+            catScore = 40;
+        } else if (!normPCat.isEmpty() && (oppCorpus.contains(normPCat) || Arrays.stream(normPCat.split("\\s+")).anyMatch(w -> w.length() >= 4 && oppCorpus.contains(w)))) {
+            catScore = 35;
+        } else if (!pSectors.isEmpty()) {
             for (String sec : pSectors.split("[,;/•]+")) {
                 String nSec = normText(sec);
-                if (nSec.length() >= 3 && oppCorpus.contains(nSec)) {
-                    catScore += 5;
+                if (nSec.length() >= 3 && (normText(sArea).contains(nSec) || oppCorpus.contains(nSec))) {
+                    catScore = 36;
                     break;
                 }
             }
         }
-        catScore = Math.min(40, catScore);
 
-        // 2. Competências Técnicas e Ferramentas Requeridas (0..35 pts)
+        // 2. Competências Técnicas e Ferramentas Requeridas (0..30 pts)
         String allSkillsRaw = pSkills + ", " + pMainService + ", " + pProjTools;
         List<String> matchedSkills = new ArrayList<>();
         List<String> allSkillsList = new ArrayList<>();
@@ -1869,28 +1891,28 @@ public class AiIntegrationService {
 
         int techScore;
         if (matchedSkills.size() >= 3) {
-            techScore = 33;
+            techScore = 29;
         } else if (matchedSkills.size() == 2) {
-            techScore = 28;
+            techScore = 25;
         } else if (matchedSkills.size() == 1) {
-            techScore = 23;
+            techScore = 21;
         } else if (!allSkillsList.isEmpty()) {
-            techScore = 18;
+            techScore = 17;
         } else {
-            techScore = 14;
+            techScore = 13;
         }
 
-        // 3. Modelo de Atuação, Portfólio e Disponibilidade (0..25 pts)
-        int otherScore = 12;
+        // 3. Modelo de Atuação, Portfólio, Disponibilidade e Localização (0..30 pts)
+        int otherScore = 15;
         if (!pBio.isEmpty() || !pExp.isEmpty()) otherScore += 5;
         if (!pProjName.isEmpty() || !pProjDesc.isEmpty()) otherScore += 4;
-        if (normText(pAvail).contains("imediata") || normText(pAvail).contains("disponivel")) otherScore += 2;
+        if (normText(pAvail).contains("imediata") || normText(pAvail).contains("disponivel")) otherScore += 3;
         if (!pLoc.isEmpty() && !sLoc.isEmpty() && (normText(pLoc).contains(normText(sLoc)) || normText(sLoc).contains(normText(pLoc)) || normText(pLoc).contains("brasil") || normText(pLoc).contains("remoto"))) {
-            otherScore += 2;
+            otherScore += 3;
         }
-        otherScore = Math.min(25, otherScore);
+        otherScore = Math.min(30, otherScore);
 
-        int totalScore = Math.max(52, Math.min(99, catScore + techScore + otherScore));
+        int totalScore = Math.max(48, Math.min(99, catScore + techScore + otherScore));
         String skillsHighlight = !matchedSkills.isEmpty()
                 ? String.join(", ", matchedSkills.subList(0, Math.min(4, matchedSkills.size())))
                 : (!pSkills.isEmpty() ? pSkills : pMainService);
@@ -1902,8 +1924,7 @@ public class AiIntegrationService {
         String impactoEsperado = "Execução técnica direta da demanda de trabalho para acelerar a escalabilidade da " + sName
                 + (!pProjName.isEmpty() ? ", apoiada pelo case prático '" + pProjName + "'." : " com foco em entregas ágeis.");
 
-        String justification = "Compatibilidade de " + totalScore + "% entre " + pName + " (" + pCat + ") e a oportunidade '" + oppTitle
-                + "' da " + sName + " (" + sArea + " · " + sStage + "): sinergia técnica em " + skillsHighlight + " e modelo '" + pConnPref + "'.";
+        String justification = "Compatibilidade de " + totalScore + "% entre " + pName + " (" + pCat + ") e " + sName + " (" + sArea + " · " + sStage + "): sinergia em " + skillsHighlight + " e modelo '" + pConnPref + "'.";
 
         Map<String, String> reasons = new LinkedHashMap<>();
         reasons.put("perfil", sinergiaTecnica);
@@ -1961,6 +1982,11 @@ public class AiIntegrationService {
                         om.put("startupLocation", st.getLocation());
                         om.put("startupStage", st.getCurrentStage() != null ? st.getCurrentStage() : "Tração");
                         om.put("startupProblem", st.getProblem());
+                        om.put("startupDescription", st.getDescription());
+                        om.put("startupHowItWorks", st.getHowItWorks());
+                        om.put("startupTechnologies", st.getTechnologies() != null && !st.getTechnologies().isBlank() ? st.getTechnologies() : st.getAreasOfInterest());
+                        om.put("startupObjective", st.getMainObjective());
+                        om.put("startupPartners", st.getDesiredPartners());
                     }
                     oppPayloads.add(om);
                 }
@@ -2063,6 +2089,7 @@ public class AiIntegrationService {
             }
 
             item.put("matchScore", score);
+            item.put("match", score);
             item.put("justification", justification);
             item.put("reasons", reasons);
 

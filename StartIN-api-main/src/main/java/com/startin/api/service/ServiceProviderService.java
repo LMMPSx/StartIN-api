@@ -285,8 +285,10 @@ public class ServiceProviderService {
             if (aPro != bPro) {
                 return aPro ? -1 : 1;
             }
-            int aMatch = a.get("match") instanceof Number ? ((Number) a.get("match")).intValue() : 0;
-            int bMatch = b.get("match") instanceof Number ? ((Number) b.get("match")).intValue() : 0;
+            int aMatch = a.get("matchScore") instanceof Number ? ((Number) a.get("matchScore")).intValue()
+                    : (a.get("match") instanceof Number ? ((Number) a.get("match")).intValue() : 0);
+            int bMatch = b.get("matchScore") instanceof Number ? ((Number) b.get("matchScore")).intValue()
+                    : (b.get("match") instanceof Number ? ((Number) b.get("match")).intValue() : 0);
             return Integer.compare(bMatch, aMatch);
         });
 

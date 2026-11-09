@@ -1,62 +1,62 @@
-# StartIn Backend API — Spring Boot 3 & MySQL
+# StartIn Backend API - Spring Boot 3, Java 21 & MySQL
 
-Backend RESTful corporativo desenvolvido em **Java 21** e **Spring Boot 3.3.4** para a plataforma **StartIn**, responsável pelo gerenciamento de usuários, perfis de Startups e Empresas, catálogo de oportunidades (editais, POCs, compras corporativas), orquestração de matchmaking e integração síncrona/assíncrona com o microserviço de **Inteligência Artificial (FastAPI + Groq LLM)** e persistência em **MySQL**.
+Backend RESTful desenvolvido em Java 21 e Spring Boot 3.3.4 para a plataforma StartIn, responsavel pelo gerenciamento de usuarios, controle de planos (Free e Pro), perfis de Startups, Empresas e Prestadores de Servicos, catalogo de oportunidades corporativas e demandas tecnicas, moderacao administrativa (`ADMIN`), orquestracao de matchmaking simetrico e integracao com o microservico de Inteligencia Artificial (FastAPI + Groq LLM) e persistencia em MySQL.
 
 ---
 
-## 🏛 Arquitetura do Sistema
+## 1. Arquitetura do Sistema
 
-A API segue o padrão de arquitetura em camadas do Spring Framework:
+A API segue o padrao de arquitetura em camadas do Spring Framework:
 
-```
+```text
 StartIN-api-main/
-├── src/main/java/com/startin/api/
-│   ├── StartInApplication.java            # Ponto de entrada do Spring Boot
-│   ├── config/
-│   │   ├── AiClientConfig.java            # Configuração do RestTemplate para o serviço de IA
-│   │   ├── CorsConfig.java                # CORS liberado para o front (localhost:3000 e 5173)
-│   │   ├── DataInitializer.java          # Carga inicial e sincronização de dados
-│   │   └── OpenApiConfig.java             # Documentação OpenAPI 3 / Swagger
-│   ├── controller/
-│   │   ├── AuthController.java            # /api/auth (login, signup, reset de senha)
-│   │   ├── StartupProfileController.java  # /api/startups (onboarding enxuto em 3 etapas, preferências)
-│   │   ├── CompanyController.java         # /api/companies (perfil de empresas contratantes)
-│   │   ├── OpportunityController.java     # /api/opportunities (CRUD de editais, POCs, compras)
-│   │   ├── MatchController.java           # /api/matches (gestão e status de matches)
-│   │   ├── DashboardController.java       # /api/dashboard (métricas consolidadas e KPIs)
-│   │   ├── NotificationController.java    # /api/notifications (alertas de prazos e novidades)
-│   │   └── AiController.java              # /api/ai (chat, trigger de sincronização diária)
-│   ├── dto/                               # DTOs de Request, Response e integração de IA
-│   ├── model/                             # Entidades JPA (User, StartupProfile, Company, Opportunity, MatchResult...)
-│   ├── repository/                        # Interfaces Spring Data JPA
-│   └── service/                           # Regras de negócio e comunicação com IA Python
-├── database_mysql_workbench.sql           # Script DDL/DML completo para MySQL 8
-├── start_backend.bat                      # Inicializador rápido para ambiente Windows
-├── pom.xml                                # Dependências Maven
-└── application.properties                 # Configurações de conexão e profiles
+|-- src/main/java/com/startin/api/
+|   |-- StartInApplication.java              # Ponto de entrada do Spring Boot
+|   |-- config/
+|   |   |-- AiClientConfig.java              # Configuracao do RestTemplate para o servico de IA
+|   |   |-- CorsConfig.java                  # CORS liberado para o frontend (localhost:3000 e 5173)
+|   |   |-- DataInitializer.java             # Carga inicial, conta admin e sincronizacao de dados
+|   |   `-- OpenApiConfig.java               # Documentacao OpenAPI 3 / Swagger
+|   |-- controller/
+|   |   |-- AuthController.java              # /api/auth (login, signup, upgrade de plano, admin)
+|   |   |-- AdminController.java             # /api/admin (moderacao geral de usuarios e oportunidades)
+|   |   |-- StartupProfileController.java    # /api/startups (onboarding, preferencias e estagio TRL)
+|   |   |-- CompanyController.java           # /api/companies (perfil de empresas e matches)
+|   |   |-- ServiceProviderController.java   # /api/providers (prestadores, demandas e conexoes)
+|   |   |-- OpportunityController.java       # /api/opportunities (CRUD de editais, POCs, compras, servicos)
+|   |   |-- MatchController.java             # /api/matches (gestao e status de matches)
+|   |   |-- DashboardController.java         # /api/dashboard (metricas consolidadas e KPIs)
+|   |   |-- NotificationController.java      # /api/notifications (alertas de prazos e conexoes)
+|   |   `-- AiController.java                # /api/ai (chat, extracao de curriculo PDF, TRL PDF, sync)
+|   |-- dto/                                 # DTOs de Request, Response e integracao de IA
+|   |-- model/                               # Entidades JPA (User, StartupProfile, Company, ServiceProvider, Opportunity...)
+|   |-- repository/                          # Interfaces Spring Data JPA
+|   `-- service/                             # Regras de negocio, limites mensais Free/Pro e integracao IA
+|-- database_mysql_workbench.sql             # Script DDL/DML para MySQL 8
+|-- start_backend.bat                        # Inicializador rapido para ambiente Windows
+|-- pom.xml                                  # Dependencias Maven
+`-- src/main/resources/application.properties# Configuracoes de conexao MySQL e porta 8080
 ```
 
 ---
 
-## 🛠 Requisitos de Ambiente
+## 2. Requisitos de Ambiente
 
-- **Java JDK**: Versão 21 ou superior (ex: OpenJDK / Oracle JDK 21).
-- **Apache Maven**: 3.8+ (ou utilize o wrapper `./mvnw` incluso).
-- **MySQL Server**: 8.0+ em execução local na porta `3306`.
-- **Microserviço de IA Python**: Executando na porta `8000` (diretório `StartIN-IA-main`).
+- Java JDK: Versao 21 ou superior.
+- Apache Maven: 3.8+ (ou utilize o wrapper `.\mvnw.cmd` incluso).
+- MySQL Server: 8.0+ em execucao local na porta `3306`.
+- Microservico de IA Python: Executando na porta `8000` (diretorio `StartIN-IA-main`).
 
 ---
 
-## 🗄 Configuração do Banco de Dados (MySQL)
+## 3. Configuracao do Banco de Dados (MySQL)
 
-1. Certifique-se de que o serviço do MySQL está ativo na porta padrão `3306`.
-2. Abra o **MySQL Workbench** ou seu terminal MySQL preferido.
-3. Execute o script contido na raiz do projeto:
+1. Certifique-se de que o servico do MySQL esta ativo na porta padrao `3306`.
+2. Crie o banco `startin_db` caso ainda nao exista:
    ```sql
-   source C:/Users/vinic/Downloads/StartIn/StartIN-api-main/database_mysql_workbench.sql;
+   CREATE DATABASE IF NOT EXISTS startin_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
-   *Esse script cria o schema `startin_db`, todas as tabelas necessárias e popula os dados iniciais de demonstração.*
-4. As credenciais configuradas em `src/main/resources/application.properties` são:
+3. As credenciais padrao em `src/main/resources/application.properties` sao:
    ```properties
    spring.datasource.url=jdbc:mysql://localhost:3306/startin_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
    spring.datasource.username=root
@@ -66,73 +66,70 @@ StartIN-api-main/
 
 ---
 
-## 🚀 Como Executar
+## 4. Como Executar
 
-### Opção A: Script Rápido (Recomendado no Windows)
-Basta clicar duas vezes ou rodar via terminal:
+### Opcao A: Script Rapido (Windows)
 ```powershell
 .\start_backend.bat
 ```
 
-### Opção B: Via Maven Wrapper
+### Opcao B: Via Maven Wrapper
 ```powershell
-.\mvnw clean spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
-A API estará disponível em: **`http://localhost:8080`**.
+Para apenas compilar e validar o codigo sem executar os testes:
+```powershell
+.\mvnw.cmd compile -DskipTests
+```
+
+A API estara disponivel em `http://localhost:8080`.
+Caso a porta `8080` ja esteja em uso por uma instancia anterior, encerre o processo ativo na porta 8080 antes de iniciar uma nova instancia.
 
 ---
 
-## 📡 Principais Endpoints da API
+## 5. Regras de Negocio e Alteracoes Recentes no Backend
 
-### 1. Autenticação (`/api/auth`)
-- `POST /api/auth/signup`: Cadastro de novos usuários segregando o papel (`STARTUP` ou `COMPANY`), além de nome, e-mail, senha e telefone.
-- `POST /api/auth/login`: Autenticação e retorno do token/sessão do usuário.
-- `POST /api/auth/forgot-password` e `reset-password`: Recuperação segura de senha.
+### 5.1. Controle de Planos (`FREE` vs `PRO`) e Limites Mensais de Oportunidades
+- Cada entidade `User` possui o campo `plan` (`FREE` ou `PRO`), retornado na autenticacao e sincronizado em todas as listagens.
+- **Limites Mensais de Lancamento (`OpportunityService.createOpportunity`)**:
+  - Usuarios no **Plano Free** podem lancar ate **5 oportunidades por mes** (valido tanto para Empresas contratantes quanto para Startups em Tracao que lancam demandas de servico).
+  - Usuarios no **Plano Pro** podem lancar ate **15 oportunidades por mes**, alem de receberem a flag `proMember = true` para impulsionamento automatico no topo das listagens.
 
-### 2. Startups & Onboarding (`/api/startups`)
-- `GET /api/startups`: Lista de todas as startups cadastradas para a busca pública.
-- `GET /api/startups/{id}`: Obter detalhes do perfil da startup.
-- `POST /api/startups/onboarding`: Salvar ou atualizar as 3 etapas do perfil (Identidade, Solução estruturada por IA e Momento/Tração com TRL da NASA + Atestado Técnico).
-- `PUT /api/startups/{id}/avatar`: Atualizar a foto de perfil exclusiva da startup.
+### 5.2. Extracao de Curriculo em PDF para Prestadores (`POST /api/ai/extract-provider-resume`)
+- Novo endpoint em `AiController` e metodo `extractProviderResume` em `AiIntegrationService` que encaminha o PDF anexado no Passo 1 do onboarding do prestador ao microservico Python de IA (com fallback deterministico local em Java caso o servico Python esteja offline).
+- Extrai `category`, `mainService`, `toolsAndSkills`, `tags`, `experienceYears`, `location`, `projectName`, `interestSectors`, `connectionPreference` e gera a `description` profissional previa em 1a pessoa.
 
-### 3. Empresas (`/api/companies`)
-- `GET /api/companies`: Lista de empresas contratantes cadastradas para a busca pública.
-- `GET /api/companies/{id}`: Detalhes da empresa (resumo de atuação, contatos, foto, tags).
-- `POST /api/companies`: Cadastro ou atualização da empresa.
-- `PUT /api/companies/{id}/avatar`: Atualizar a foto de perfil exclusiva da empresa.
+### 5.3. Consistencia e Simetria Bidirecional dos Scores de Match
+- Os metodos de compatibilidade e fallback em `AiIntegrationService` e `ServiceProviderService` foram unificados sob a mesma regra deterministica do motor Python (`40% Area + 30% Tecnologias + 30% Contexto/Maturidade`), garantindo que o percentual de match entre `Empresa <-> Startup` e `Startup em Tracao <-> Prestador de Servicos / Demandas` seja identico em ambos os sentidos e consistente com o texto da justificativa.
 
-### 4. Oportunidades (`/api/opportunities`)
-- `GET /api/opportunities`: Consulta todas as oportunidades (editais públicos raspados pela IA, `POC`, `PRIMEIRA_COMPRA` e `COMPRA`), com filtro opcional por `companyId`.
-- `POST /api/opportunities`: Criação de oportunidade corporativa (`POC`, `PRIMEIRA_COMPRA`, `COMPRA`).
-- `PUT /api/opportunities/{id}`: Edição completa de oportunidade corporativa lançada pela empresa (título, modalidade, escopo, prazo, tags e status).
-- `GET /api/opportunities/{id}`: Detalhes de um edital ou oportunidade.
-
-### 5. Matches Inteligentes & Dashboards (`/api/matches` e `/api/dashboard`)
-- `GET /api/matches`: Retorna matches calculados pela IA filtrados automaticamente pelo estágio da startup (`Validação` -> `POC` + `PRIMEIRA_COMPRA` + `EDITAL` + `EVENTO`; `Tração` -> `COMPRA` + `EDITAL` + `EVENTO`, sem `POC`).
-- `POST /api/matches/company-interest`: Registra interesse direto da startup nas oportunidades de uma empresa.
-- `GET /api/dashboard/summary`: Métricas consolidadas da Startup (`Oportunidades encontradas` acumuladas, `Empresas com match`, `Matches novos` da última atualização e `Em acompanhamento`).
-- `GET /api/dashboard/company-summary`: Dashboard corporativo da Empresa (`Startups que deram match`, `POCs / Compras lançadas`, últimas oportunidades editáveis e histórico completo de startups compatíveis).
-
-### 6. IA Integrada & Sincronização (`/api/ai`)
-- `POST /api/ai/enhance-problem`: Estrutura o problema/solução da startup no onboarding em 3 etapas.
-- `POST /api/ai/verify-traction-pdf`: Lê o PDF do Atestado de Capacidade Técnica junto à escala TRL da NASA (1–9) para comprovar o estágio de Tração.
-- `POST /api/ai/chat`: Assistente exclusivo de Startups para geração de templates e textos persuasivos com suporte a anexos e oportunidades salvas.
-- `POST /api/ai/daily-sync`: Endpoint que recebe os novos editais raspados e os matches calculados pelo script das 08:00 do microserviço de IA, persistindo de forma transacional no MySQL.
+### 5.4. Modulo Administrativo Geral (`AdminController` - `/api/admin`)
+- Conta administrativa semeada automaticamente (`user: admin` / `password: 0000` com papel `ADMIN` e plano `PRO`).
+- Endpoints dedicados para listagem de metricas globais (`GET /api/admin/overview`), edicao/alteracao de plano e exclusao de usuarios (`PUT /api/admin/users/{id}`, `DELETE /api/admin/users/{id}`), moderacao e exclusao de oportunidades e demandas (`PUT /api/admin/opportunities/{id}`, `DELETE /api/admin/opportunities/{id}`).
 
 ---
 
-## 📖 Documentação Interativa (Swagger / OpenAPI)
+## 6. Principais Endpoints da API
 
-Com o backend em execução, acesse no navegador:
-- **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- **Especificação OpenAPI JSON**: [http://localhost:8080/api-docs](http://localhost:8080/api-docs)
+- **Autenticacao (`/api/auth`)**: `POST /api/auth/login`, `POST /api/auth/signup`, `PUT /api/auth/users/{id}/plan`.
+- **Administracao (`/api/admin`)**: `GET /api/admin/overview`, `GET /api/admin/users`, `PUT /api/admin/users/{id}`, `DELETE /api/admin/users/{id}`, `PUT /api/admin/opportunities/{id}`, `DELETE /api/admin/opportunities/{id}`.
+- **Startups (`/api/startups`)**: `GET /api/startups`, `GET /api/startups/{id}`, `PUT /api/startups/{id}`, `PUT /api/startups/{id}/preferences`.
+- **Empresas (`/api/companies`)**: `GET /api/companies`, `GET /api/companies/{id}`, `POST /api/companies`, `PUT /api/companies/{id}`, `GET /api/companies/{id}/matching-startups`.
+- **Prestadores e Conexoes (`/api/providers`)**: `GET /api/providers`, `POST /api/providers`, `PUT /api/providers/{id}`, `GET /api/providers/{id}/recommendations`, `POST /api/providers/connections`, `DELETE /api/providers/connections/{id}`.
+- **Oportunidades (`/api/opportunities`)**: `GET /api/opportunities`, `POST /api/opportunities`, `PUT /api/opportunities/{id}`, `DELETE /api/opportunities/{id}`.
+- **Inteligencia Artificial (`/api/ai`)**:
+  - `POST /api/ai/chat`: Assistente IA (Chatbot Pro) com suporte a estilo de template personalizado.
+  - `POST /api/ai/extract-provider-resume`: Leitura e extracao estruturada de curriculo em PDF do prestador.
+  - `POST /api/ai/enhance-provider-services`: Aprimoramento coeso em 1a pessoa da descricao profissional do prestador.
+  - `POST /api/ai/enhance-problem`: Estruturacao de problema/solucao de startups e demandas.
+  - `POST /api/ai/enhance-company-demands`: Estruturacao executiva de demandas corporativas.
+  - `POST /api/ai/verify-traction-pdf`: Auditoria de Atestado de Capacidade Tecnica em PDF aliado ao TRL da NASA.
+  - `POST /api/ai/match`: Execucao do matchmaking auditado.
 
 ---
 
-## ⚙ Configuração de CORS
-O CORS está pré-configurado em `CorsConfig.java` para aceitar requisições de origens locais de desenvolvimento:
-- `http://localhost:3000` (porta padrão do Vite Frontend)
-- `http://localhost:5173` (porta alternativa do Vite)
-- Headers: `Authorization`, `Content-Type`, `Accept`.
-- Métodos: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`, `PATCH`.
+## 7. Documentacao Interativa (Swagger / OpenAPI)
+
+Com o backend em execucao, acesse no navegador:
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Especificacao OpenAPI JSON: `http://localhost:8080/api-docs`
