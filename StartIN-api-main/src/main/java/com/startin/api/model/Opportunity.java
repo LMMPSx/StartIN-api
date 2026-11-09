@@ -48,6 +48,8 @@ public class Opportunity {
 
     private String targetCategory;
 
+    private Boolean proMember = false;
+
     private LocalDateTime createdAt;
 
     public Opportunity() {
@@ -194,6 +196,14 @@ public class Opportunity {
 
     public void setTargetCategory(String targetCategory) {
         this.targetCategory = targetCategory;
+    }
+
+    public Boolean getProMember() {
+        return proMember != null ? proMember : false;
+    }
+
+    public void setProMember(Boolean proMember) {
+        this.proMember = proMember != null ? proMember : false;
     }
 
     public LocalDateTime getCreatedAt() {

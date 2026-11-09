@@ -14,6 +14,7 @@ public class AuthResponseDTO {
     private Long companyId;
     private Long providerId;
     private String accountType;
+    private String plan = "FREE";
     private String message;
 
     public AuthResponseDTO() {
@@ -21,11 +22,18 @@ public class AuthResponseDTO {
 
     public Long getProviderId() { return providerId; }
     public void setProviderId(Long providerId) { this.providerId = providerId; }
+    public String getPlan() { return plan != null ? plan : "FREE"; }
+    public void setPlan(String plan) { this.plan = plan != null && !plan.isBlank() ? plan.toUpperCase() : "FREE"; }
 
-    public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, String phone, String avatarUrl, Long startupProfileId, Long companyId, Long providerId, String accountType) {
+    public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, String phone, String avatarUrl, Long startupProfileId, Long companyId, Long providerId, String accountType, String plan) {
         AuthResponseDTO dto = new AuthResponseDTO(true, token, userId, email, name, cnpj, phone, avatarUrl, startupProfileId, companyId, accountType, "Autenticado com sucesso");
         dto.setProviderId(providerId);
+        dto.setPlan(plan);
         return dto;
+    }
+
+    public static AuthResponseDTO ok(String token, Long userId, String email, String name, String cnpj, String phone, String avatarUrl, Long startupProfileId, Long companyId, Long providerId, String accountType) {
+        return ok(token, userId, email, name, cnpj, phone, avatarUrl, startupProfileId, companyId, providerId, accountType, "FREE");
     }
 
     public AuthResponseDTO(boolean success, String token, Long userId, String email, String name, String cnpj, String avatarUrl, Long startupProfileId, String message) {

@@ -51,14 +51,15 @@ public class StartupProfileService {
 
     @Transactional
     public StartupProfileDTO updateProfile(Long id, StartupProfileDTO dto) {
-        StartupProfile profile = startupProfileRepository.findById(id)
-                .or(() -> startupProfileRepository.findByUserId(id))
-                .or(() -> dto.getUserId() != null ? startupProfileRepository.findByUserId(dto.getUserId()) : Optional.empty())
-                .orElseGet(() -> startupProfileRepository.findAll().stream().findFirst()
-                        .orElseGet(() -> {
-                            StartupProfile p = new StartupProfile();
-                            return startupProfileRepository.save(p);
-                        }));
+        StartupProfile profile = (dto.getUserId() != null && dto.getUserId() > 0
+                ? startupProfileRepository.findByUserId(dto.getUserId())
+                : Optional.<StartupProfile>empty())
+                .or(() -> id != null && id > 0 ? startupProfileRepository.findById(id) : Optional.empty())
+                .or(() -> id != null && id > 0 ? startupProfileRepository.findByUserId(id) : Optional.empty())
+                .orElseGet(() -> {
+                    StartupProfile p = new StartupProfile();
+                    return startupProfileRepository.save(p);
+                });
 
         dto.applyToEntity(profile);
         StartupProfile saved = startupProfileRepository.save(profile);

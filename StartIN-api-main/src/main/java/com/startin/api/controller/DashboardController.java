@@ -24,8 +24,10 @@ public class DashboardController {
 
     @GetMapping("/summary")
     @Operation(summary = "Retorna visão geral do dashboard da startup com indicadores e próximos prazos")
-    public ResponseEntity<DashboardSummaryDTO> getSummary(@RequestParam(required = false) Long startupId) {
-        return ResponseEntity.ok(dashboardService.getSummary(startupId));
+    public ResponseEntity<DashboardSummaryDTO> getSummary(
+            @RequestParam(required = false) Long startupId,
+            @RequestParam(required = false) Long userId) {
+        return ResponseEntity.ok(dashboardService.getSummary(startupId, userId));
     }
 
     @GetMapping("/company-summary")

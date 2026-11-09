@@ -32,6 +32,9 @@ public class User {
     @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     private UserRole role = UserRole.USER;
 
+    @Column(length = 20)
+    private String plan = "FREE";
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -121,6 +124,14 @@ public class User {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getPlan() {
+        return plan != null && !plan.isBlank() ? plan.toUpperCase() : "FREE";
+    }
+
+    public void setPlan(String plan) {
+        this.plan = plan != null && !plan.isBlank() ? plan.toUpperCase().trim() : "FREE";
     }
 
     public LocalDateTime getCreatedAt() {

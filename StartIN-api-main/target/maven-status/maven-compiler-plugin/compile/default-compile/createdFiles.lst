@@ -47,6 +47,7 @@ com\startin\api\repository\NotificationRepository.class
 com\startin\api\dto\provider\ServiceConnectionDTO.class
 com\startin\api\repository\ServiceProviderRepository.class
 com\startin\api\model\enums\MatchStatus.class
+com\startin\api\controller\AdminController.class
 com\startin\api\dto\ai\AiDailySyncPayloadDTO$StartupMatchesBatchDTO.class
 com\startin\api\dto\auth\AuthResponseDTO.class
 com\startin\api\dto\opportunity\CreateOpportunityDTO.class

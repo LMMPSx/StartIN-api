@@ -13,10 +13,12 @@ public class AiChatRequestDTO {
     private Long userId;
     private AiStartupInputDTO startup;
     private Map<String, Object> provider;
+    private Map<String, Object> company;
     private Map<String, Object> selectedOpportunity;
     private String attachmentName;
     private String attachmentBase64;
     private String attachmentText;
+    private String templateStyle;
 
     public AiChatRequestDTO() {
     }
@@ -35,6 +37,8 @@ public class AiChatRequestDTO {
     public void setStartup(AiStartupInputDTO startup) { this.startup = startup; }
     public Map<String, Object> getProvider() { return provider; }
     public void setProvider(Map<String, Object> provider) { this.provider = provider; }
+    public Map<String, Object> getCompany() { return company; }
+    public void setCompany(Map<String, Object> company) { this.company = company; }
     public Map<String, Object> getSelectedOpportunity() { return selectedOpportunity; }
     public void setSelectedOpportunity(Map<String, Object> selectedOpportunity) { this.selectedOpportunity = selectedOpportunity; }
     public String getAttachmentName() { return attachmentName; }
@@ -43,4 +47,6 @@ public class AiChatRequestDTO {
     public void setAttachmentBase64(String attachmentBase64) { this.attachmentBase64 = attachmentBase64; }
     public String getAttachmentText() { return attachmentText; }
     public void setAttachmentText(String attachmentText) { this.attachmentText = attachmentText; }
+    public String getTemplateStyle() { return templateStyle; }
+    public void setTemplateStyle(String templateStyle) { this.templateStyle = templateStyle; }
 }

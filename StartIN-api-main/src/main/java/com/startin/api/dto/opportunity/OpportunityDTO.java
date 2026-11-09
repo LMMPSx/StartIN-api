@@ -21,6 +21,7 @@ public class OpportunityDTO {
     private Long startupId;
     private String startupName;
     private String targetCategory;
+    private Boolean proMember = false;
 
     public OpportunityDTO() {
     }
@@ -41,16 +42,27 @@ public class OpportunityDTO {
         dto.setStatus(entity.getStatus() != null ? entity.getStatus().name() : "PUBLICADA");
         dto.setExternalUrl(entity.getExternalUrl());
         dto.setTargetCategory(entity.getTargetCategory());
+        boolean isPro = Boolean.TRUE.equals(entity.getProMember());
         if (entity.getCompany() != null) {
             dto.setCompanyId(entity.getCompany().getId());
             dto.setCompanyName(entity.getCompany().getName());
+            if (entity.getCompany().getUser() != null && "PRO".equalsIgnoreCase(entity.getCompany().getUser().getPlan())) {
+                isPro = true;
+            }
         }
         if (entity.getStartup() != null) {
             dto.setStartupId(entity.getStartup().getId());
             dto.setStartupName(entity.getStartup().getName());
+            if (entity.getStartup().getUser() != null && "PRO".equalsIgnoreCase(entity.getStartup().getUser().getPlan())) {
+                isPro = true;
+            }
         }
+        dto.setProMember(isPro);
         return dto;
     }
+
+    public Boolean getProMember() { return proMember != null ? proMember : false; }
+    public void setProMember(Boolean proMember) { this.proMember = proMember != null ? proMember : false; }
 
     public Long getStartupId() { return startupId; }
     public void setStartupId(Long startupId) { this.startupId = startupId; }

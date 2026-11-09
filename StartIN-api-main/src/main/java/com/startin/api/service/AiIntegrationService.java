@@ -168,9 +168,11 @@ public class AiIntegrationService {
         }
 
         chatRequest.setSelectedOpportunity(incomingRequest.getSelectedOpportunity());
+        chatRequest.setCompany(incomingRequest.getCompany());
         chatRequest.setAttachmentName(incomingRequest.getAttachmentName());
         chatRequest.setAttachmentBase64(incomingRequest.getAttachmentBase64());
         chatRequest.setAttachmentText(incomingRequest.getAttachmentText());
+        chatRequest.setTemplateStyle(incomingRequest.getTemplateStyle());
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -187,9 +189,22 @@ public class AiIntegrationService {
         }
 
         if (provider != null || "PROVIDER".equalsIgnoreCase(incomingRequest.getAccountType())) {
-            return buildJavaProviderContextualFallbackReply(incomingRequest, provider);
+            return applyCustomTemplateStyleIfRequested(buildJavaProviderContextualFallbackReply(incomingRequest, provider), incomingRequest);
         }
-        return buildJavaContextualFallbackReply(incomingRequest, profile);
+        return applyCustomTemplateStyleIfRequested(buildJavaContextualFallbackReply(incomingRequest, profile), incomingRequest);
+    }
+
+    private String applyCustomTemplateStyleIfRequested(String baseReply, AiChatRequestDTO req) {
+        String style = req != null && req.getTemplateStyle() != null ? req.getTemplateStyle().trim() : "";
+        if (style.isEmpty() || "padrao".equalsIgnoreCase(style) || "padrão".equalsIgnoreCase(style)) {
+            return baseReply;
+        }
+        return "ESTILO DE TEMPLATE DEFINIDO PELO USUARIO: " + style.toUpperCase() + "\n" +
+               "------------------------------------------------------------\n\n" +
+               baseReply + "\n\n" +
+               "------------------------------------------------------------\n" +
+               "ADEQUACAO AO ESTILO SOLICITADO (" + style + "):\n" +
+               "O documento acima foi estruturado de forma coesa seguindo a diretriz '" + style + "'. Para voltar ao modelo padrão da StartIn, digite 'padrão' no campo de definição de template.";
     }
 
     private String buildJavaProviderContextualFallbackReply(AiChatRequestDTO incomingRequest, ServiceProvider provider) {

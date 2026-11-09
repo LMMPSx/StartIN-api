@@ -26,8 +26,10 @@ public class MatchController {
 
     @GetMapping
     @Operation(summary = "Lista todos os matches calculados para a startup")
-    public ResponseEntity<List<MatchResultDTO>> getMatches(@RequestParam(required = false) Long startupId) {
-        return ResponseEntity.ok(matchService.getMatchesForStartup(startupId));
+    public ResponseEntity<List<MatchResultDTO>> getMatches(
+            @RequestParam(required = false) Long startupId,
+            @RequestParam(required = false) Long userId) {
+        return ResponseEntity.ok(matchService.getMatchesForStartup(startupId, userId));
     }
 
     @GetMapping("/{id}")
@@ -42,22 +44,25 @@ public class MatchController {
     @Operation(summary = "Aciona o microserviço de IA em Python para raspar editais da web e recalcular matches em tempo real")
     public ResponseEntity<List<MatchResultDTO>> recalculate(@RequestBody(required = false) MatchTriggerRequestDTO request) {
         Long startupId = (request != null) ? request.getStartupId() : null;
+        Long userId = (request != null) ? request.getUserId() : null;
         boolean scrape = request == null || request.getScrapeLiveWeb() == null || Boolean.TRUE.equals(request.getScrapeLiveWeb());
-        return ResponseEntity.ok(matchService.recalculateMatches(startupId, scrape));
+        return ResponseEntity.ok(matchService.recalculateMatches(startupId, userId, scrape));
     }
 
     @PostMapping("/participate")
     @Operation(summary = "Registra interesse/participação da startup em uma oportunidade")
     public ResponseEntity<MatchResultDTO> participate(@RequestBody Map<String, Object> payload) {
         Long startupId = payload.get("startupId") != null ? Long.valueOf(String.valueOf(payload.get("startupId"))) : null;
+        Long userId = payload.get("userId") != null ? Long.valueOf(String.valueOf(payload.get("userId"))) : null;
         String oppId = String.valueOf(payload.get("opportunityId"));
-        return ResponseEntity.ok(matchService.participateInOpportunity(startupId, oppId));
+        return ResponseEntity.ok(matchService.participateInOpportunity(startupId, userId, oppId));
     }
 
     @PostMapping("/unparticipate")
     @Operation(summary = "Remove o interesse/salvamento de uma oportunidade ou match no banco de dados")
     public ResponseEntity<Map<String, Object>> unparticipate(@RequestBody Map<String, Object> payload) {
         Long startupId = payload.get("startupId") != null ? Long.valueOf(String.valueOf(payload.get("startupId"))) : null;
+        Long userId = payload.get("userId") != null ? Long.valueOf(String.valueOf(payload.get("userId"))) : null;
         Long matchId = null;
         if (payload.get("matchId") != null) {
             try {
@@ -66,7 +71,7 @@ public class MatchController {
         }
         String oppId = payload.get("opportunityId") != null ? String.valueOf(payload.get("opportunityId")) : null;
         String title = payload.get("title") != null ? String.valueOf(payload.get("title")) : null;
-        matchService.unparticipateInOpportunity(startupId, oppId, matchId, title);
+        matchService.unparticipateInOpportunity(startupId, userId, oppId, matchId, title);
         return ResponseEntity.ok(Map.of("removed", true));
     }
 
@@ -80,16 +85,18 @@ public class MatchController {
     @GetMapping("/startup-companies")
     @Operation(summary = "Lista todas as empresas cadastradas com o match calculado pela IA para a startup")
     public ResponseEntity<List<Map<String, Object>>> getStartupCompaniesMatches(
-            @RequestParam(required = false) Long startupId) {
-        return ResponseEntity.ok(matchService.getStartupToCompaniesMatches(startupId));
+            @RequestParam(required = false) Long startupId,
+            @RequestParam(required = false) Long userId) {
+        return ResponseEntity.ok(matchService.getStartupToCompaniesMatches(startupId, userId));
     }
 
     @PostMapping("/company-interest")
     @Operation(summary = "Registra interesse direto da startup nas POCs/Compras de uma empresa")
     public ResponseEntity<Map<String, Object>> expressCompanyInterest(@RequestBody Map<String, Object> payload) {
         Long startupId = payload.get("startupId") != null ? Long.valueOf(String.valueOf(payload.get("startupId"))) : null;
+        Long userId = payload.get("userId") != null ? Long.valueOf(String.valueOf(payload.get("userId"))) : null;
         Long companyId = payload.get("companyId") != null ? Long.valueOf(String.valueOf(payload.get("companyId"))) : null;
-        return ResponseEntity.ok(matchService.expressInterestInCompany(startupId, companyId));
+        return ResponseEntity.ok(matchService.expressInterestInCompany(startupId, userId, companyId));
     }
 
     @PostMapping("/startup-interest")

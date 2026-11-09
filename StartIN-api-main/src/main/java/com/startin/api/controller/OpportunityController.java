@@ -58,4 +58,14 @@ public class OpportunityController {
     public ResponseEntity<OpportunityDTO> update(@PathVariable Long id, @RequestBody CreateOpportunityDTO dto) {
         return ResponseEntity.ok(opportunityService.updateOpportunity(id, dto));
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Remove uma oportunidade existente")
+    public ResponseEntity<java.util.Map<String, Object>> delete(@PathVariable Long id) {
+        boolean deleted = opportunityService.deleteOpportunity(id);
+        if (!deleted) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(java.util.Map.of("deleted", true, "id", id));
+    }
 }

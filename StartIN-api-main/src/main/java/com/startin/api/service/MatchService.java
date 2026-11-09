@@ -179,7 +179,12 @@ public class MatchService {
 
     @Transactional
     public List<MatchResultDTO> getMatchesForStartup(Long startupId) {
-        StartupProfile profile = resolveStartupProfile(startupId);
+        return getMatchesForStartup(startupId, null);
+    }
+
+    @Transactional
+    public List<MatchResultDTO> getMatchesForStartup(Long startupId, Long userId) {
+        StartupProfile profile = resolveStartupProfile(startupId, userId);
         if (profile == null) {
             return List.of();
         }
@@ -216,7 +221,12 @@ public class MatchService {
 
     @Transactional
     public List<MatchResultDTO> recalculateMatches(Long startupId, boolean scrapeLiveWeb) {
-        StartupProfile profile = resolveStartupProfile(startupId);
+        return recalculateMatches(startupId, null, scrapeLiveWeb);
+    }
+
+    @Transactional
+    public List<MatchResultDTO> recalculateMatches(Long startupId, Long userId, boolean scrapeLiveWeb) {
+        StartupProfile profile = resolveStartupProfile(startupId, userId);
         if (profile == null) {
             throw new IllegalArgumentException("Nenhum perfil de startup cadastrado para calcular matches.");
         }
@@ -379,6 +389,11 @@ public class MatchService {
 
     @Transactional
     public void unparticipateInOpportunity(Long startupId, String opportunityIdOrCode, Long matchId, String title) {
+        unparticipateInOpportunity(startupId, null, opportunityIdOrCode, matchId, title);
+    }
+
+    @Transactional
+    public void unparticipateInOpportunity(Long startupId, Long userId, String opportunityIdOrCode, Long matchId, String title) {
         if (matchId != null) {
             Optional<MatchResult> byMatchId = matchResultRepository.findById(matchId);
             if (byMatchId.isPresent()) {
@@ -388,7 +403,7 @@ public class MatchService {
             }
         }
 
-        StartupProfile profile = resolveStartupProfile(startupId);
+        StartupProfile profile = resolveStartupProfile(startupId, userId);
         Long targetStartupId = profile != null ? profile.getId() : null;
         if (targetStartupId == null) {
             return;
@@ -487,7 +502,12 @@ public class MatchService {
 
     @Transactional
     public Map<String, Object> expressInterestInCompany(Long startupId, Long companyId) {
-        StartupProfile profile = resolveStartupProfile(startupId);
+        return expressInterestInCompany(startupId, null, companyId);
+    }
+
+    @Transactional
+    public Map<String, Object> expressInterestInCompany(Long startupId, Long userId, Long companyId) {
+        StartupProfile profile = resolveStartupProfile(startupId, userId);
         Company company = resolveCompany(companyId);
         if (profile == null || company == null) {
             throw new IllegalArgumentException("Startup ou Empresa não encontrada.");
@@ -581,7 +601,11 @@ public class MatchService {
     }
 
     public List<Map<String, Object>> getStartupToCompaniesMatches(Long startupId) {
-        StartupProfile startup = resolveStartupProfile(startupId);
+        return getStartupToCompaniesMatches(startupId, null);
+    }
+
+    public List<Map<String, Object>> getStartupToCompaniesMatches(Long startupId, Long userId) {
+        StartupProfile startup = resolveStartupProfile(startupId, userId);
         List<Company> companies = companyRepository.findAll();
         return aiIntegrationService.calculateStartupToCompaniesMatches(startup, companies);
     }
@@ -598,7 +622,12 @@ public class MatchService {
 
     @Transactional
     public MatchResultDTO participateInOpportunity(Long startupId, String opportunityIdOrCode) {
-        StartupProfile profile = resolveStartupProfile(startupId);
+        return participateInOpportunity(startupId, null, opportunityIdOrCode);
+    }
+
+    @Transactional
+    public MatchResultDTO participateInOpportunity(Long startupId, Long userId, String opportunityIdOrCode) {
+        StartupProfile profile = resolveStartupProfile(startupId, userId);
         if (profile == null) {
             throw new IllegalArgumentException("Perfil de startup não encontrado.");
         }
@@ -681,11 +710,27 @@ public class MatchService {
     }
 
     private StartupProfile resolveStartupProfile(Long startupId) {
-        if (startupId != null) {
+        return resolveStartupProfile(startupId, null);
+    }
+
+    private StartupProfile resolveStartupProfile(Long startupId, Long userId) {
+        if (userId != null && userId > 0) {
+            Optional<StartupProfile> byUser = startupProfileRepository.findByUserId(userId);
+            if (byUser.isPresent()) return byUser.get();
+        }
+        if (startupId != null && startupId > 0) {
             Optional<StartupProfile> byId = startupProfileRepository.findById(startupId);
-            if (byId.isPresent()) return byId.get();
+            if (byId.isPresent()) {
+                StartupProfile found = byId.get();
+                if (userId == null || userId <= 0 || found.getUser() == null || Objects.equals(found.getUser().getId(), userId)) {
+                    return found;
+                }
+            }
             Optional<StartupProfile> byUser = startupProfileRepository.findByUserId(startupId);
-            return byUser.orElse(null);
+            if (byUser.isPresent()) return byUser.get();
+        }
+        if ((startupId != null && startupId > 0) || (userId != null && userId > 0)) {
+            return null;
         }
         return startupProfileRepository.findAll().stream().findFirst().orElse(null);
     }

@@ -152,12 +152,39 @@ public class AuthService {
         }
 
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), startupProfileId, companyId, providerId, accountType);
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), startupProfileId, companyId, providerId, accountType, user.getPlan());
     }
 
     @Transactional
     public AuthResponseDTO login(LoginRequestDTO request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail().toLowerCase().trim());
+        String rawEmail = request.getEmail() != null ? request.getEmail().toLowerCase().trim() : "";
+        String rawPass = request.getPassword() != null ? request.getPassword().trim() : "";
+
+        // Fluxo de Admin (user: admin / password: 0000)
+        if (("admin".equals(rawEmail) || "admin@startin.com".equals(rawEmail)) && "0000".equals(rawPass)) {
+            User adminUser = userRepository.findByEmail("admin")
+                    .or(() -> userRepository.findByEmail("admin@startin.com"))
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setEmail("admin");
+                        u.setPassword("0000");
+                        u.setName("Administrador StartIn");
+                        u.setCnpj("00.000.000/0001-91");
+                        u.setPhone("(81) 99999-0000");
+                        u.setRole(UserRole.ADMIN);
+                        u.setPlan("PRO");
+                        return userRepository.save(u);
+                    });
+            if (adminUser.getRole() != UserRole.ADMIN || !"PRO".equalsIgnoreCase(adminUser.getPlan())) {
+                adminUser.setRole(UserRole.ADMIN);
+                adminUser.setPlan("PRO");
+                adminUser = userRepository.save(adminUser);
+            }
+            String token = UUID.randomUUID().toString();
+            return AuthResponseDTO.ok(token, adminUser.getId(), adminUser.getEmail(), adminUser.getName(), adminUser.getCnpj(), adminUser.getPhone(), adminUser.getAvatarUrl(), null, null, null, "ADMIN", "PRO");
+        }
+
+        Optional<User> optionalUser = userRepository.findByEmail(rawEmail);
         if (optionalUser.isEmpty()) {
             return AuthResponseDTO.error("E-mail ou senha inválidos.");
         }
@@ -165,6 +192,11 @@ public class AuthService {
         User user = optionalUser.get();
         if (!user.getPassword().equals(request.getPassword())) {
             return AuthResponseDTO.error("E-mail ou senha inválidos.");
+        }
+
+        if (user.getRole() == UserRole.ADMIN) {
+            String token = UUID.randomUUID().toString();
+            return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), null, null, null, "ADMIN", "PRO");
         }
 
         boolean isProvider = user.getRole() == UserRole.PROVIDER;
@@ -233,11 +265,14 @@ public class AuthService {
 
         String accountType = isProvider ? "PROVIDER" : (isCompany ? "COMPANY" : "STARTUP");
         String token = UUID.randomUUID().toString();
-        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, startupProfileId, companyId, providerId, accountType);
+        return AuthResponseDTO.ok(token, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, startupProfileId, companyId, providerId, accountType, user.getPlan());
     }
 
     public Optional<AuthResponseDTO> getUserInfo(Long userId) {
         return userRepository.findById(userId).map(user -> {
+            if (user.getRole() == UserRole.ADMIN) {
+                return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), null, null, null, "ADMIN", "PRO");
+            }
             Optional<StartupProfile> profileOpt = startupProfileRepository.findByUserId(user.getId());
             Optional<Company> companyOpt = companyRepository.findByUserId(user.getId());
             Optional<com.startin.api.model.ServiceProvider> providerOpt = providerRepository.findByUserId(user.getId());
@@ -258,7 +293,7 @@ public class AuthService {
                             ? companyOpt.map(Company::getAvatarUrl).orElse(null)
                             : profileOpt.map(StartupProfile::getAvatarUrl).orElse(null)));
 
-            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, profileId, companyId, providerId, accountType);
+            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), avatar, profileId, companyId, providerId, accountType, user.getPlan());
         });
     }
 
@@ -277,11 +312,17 @@ public class AuthService {
             if (payload.get("phone") != null) {
                 user.setPhone(payload.get("phone").trim());
             }
+            if (payload.get("password") != null && !payload.get("password").isBlank()) {
+                user.setPassword(payload.get("password").trim());
+            }
             if (payload.containsKey("avatarUrl")) {
                 user.setAvatarUrl(payload.get("avatarUrl"));
             }
             if (payload.get("accountType") != null && !payload.get("accountType").isBlank()) {
                 user.setRole(UserRole.fromString(payload.get("accountType")));
+            }
+            if (payload.get("plan") != null && !payload.get("plan").isBlank()) {
+                user.setPlan(payload.get("plan").trim().toUpperCase());
             }
             user = userRepository.save(user);
 
@@ -323,10 +364,16 @@ public class AuthService {
                 companyRepository.save(c);
             }
 
+            Optional<com.startin.api.model.ServiceProvider> providerOpt = providerRepository.findByUserId(user.getId());
             Long profileId = profileOpt.map(StartupProfile::getId).orElse(null);
             Long companyId = companyOpt.map(Company::getId).orElse(null);
-            String accountType = user.getRole() == UserRole.COMPANY ? "COMPANY" : "STARTUP";
-            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), profileId, companyId, accountType);
+            Long providerId = providerOpt.map(com.startin.api.model.ServiceProvider::getId).orElse(null);
+            String accountType = user.getRole() == UserRole.ADMIN
+                    ? "ADMIN"
+                    : ((user.getRole() == UserRole.PROVIDER || providerOpt.isPresent())
+                        ? "PROVIDER"
+                        : (user.getRole() == UserRole.COMPANY ? "COMPANY" : "STARTUP"));
+            return AuthResponseDTO.ok(null, user.getId(), user.getEmail(), user.getName(), user.getCnpj(), user.getPhone(), user.getAvatarUrl(), profileId, companyId, providerId, accountType, user.getPlan());
         });
     }
 

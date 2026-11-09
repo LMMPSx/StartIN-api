@@ -45,11 +45,26 @@ public class DashboardService {
 
     @Transactional
     public DashboardSummaryDTO getSummary(Long startupId) {
-        StartupProfile profile = startupId != null
-                ? startupProfileRepository.findById(startupId)
-                    .or(() -> startupProfileRepository.findByUserId(startupId))
-                    .orElseGet(() -> startupProfileRepository.findAll().stream().findFirst().orElse(null))
-                : startupProfileRepository.findAll().stream().findFirst().orElse(null);
+        return getSummary(startupId, null);
+    }
+
+    @Transactional
+    public DashboardSummaryDTO getSummary(Long startupId, Long userId) {
+        StartupProfile profile = null;
+        if (userId != null && userId > 0) {
+            profile = startupProfileRepository.findByUserId(userId).orElse(null);
+        }
+        if (profile == null && startupId != null && startupId > 0) {
+            StartupProfile found = startupProfileRepository.findById(startupId).orElse(null);
+            if (found != null && (userId == null || userId <= 0 || found.getUser() == null || Objects.equals(found.getUser().getId(), userId))) {
+                profile = found;
+            } else {
+                profile = startupProfileRepository.findByUserId(startupId).orElse(null);
+            }
+        }
+        if (profile == null && startupId == null && userId == null) {
+            profile = startupProfileRepository.findAll().stream().findFirst().orElse(null);
+        }
 
         String name = (profile != null && profile.getName() != null && !profile.getName().isBlank())
                 ? profile.getName()

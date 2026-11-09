@@ -255,6 +255,13 @@ public class ServiceProviderService {
                     sId = Long.valueOf(item.get("id").toString());
                 } catch (Exception ignored) {}
             }
+            if (sId != null && tractionStartupsById.containsKey(sId)) {
+                StartupProfile stOwner = tractionStartupsById.get(sId);
+                boolean isPro = stOwner.getUser() != null && "PRO".equalsIgnoreCase(stOwner.getUser().getPlan());
+                item.put("proMember", isPro);
+            } else {
+                item.put("proMember", Boolean.TRUE.equals(item.get("proMember")));
+            }
             if (sId != null && connectionByStartupId.containsKey(sId)) {
                 ServiceConnection conn = connectionByStartupId.get(sId);
                 item.put("hasConnection", true);
@@ -270,6 +277,18 @@ public class ServiceProviderService {
                 item.put("connectionCreatedAt", null);
             }
         }
+
+        // Impulsionamento Pro: oportunidades lançadas por startups assinantes do Plano Pro ficam na frente
+        evaluated.sort((a, b) -> {
+            boolean aPro = Boolean.TRUE.equals(a.get("proMember"));
+            boolean bPro = Boolean.TRUE.equals(b.get("proMember"));
+            if (aPro != bPro) {
+                return aPro ? -1 : 1;
+            }
+            int aMatch = a.get("match") instanceof Number ? ((Number) a.get("match")).intValue() : 0;
+            int bMatch = b.get("match") instanceof Number ? ((Number) b.get("match")).intValue() : 0;
+            return Integer.compare(bMatch, aMatch);
+        });
 
         if (onlySaved) {
             return evaluated.stream()

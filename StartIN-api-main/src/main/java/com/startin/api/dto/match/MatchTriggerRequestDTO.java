@@ -3,6 +3,7 @@ package com.startin.api.dto.match;
 public class MatchTriggerRequestDTO {
 
     private Long startupId;
+    private Long userId;
     private Boolean scrapeLiveWeb = false;
 
     public MatchTriggerRequestDTO() {
@@ -19,6 +20,14 @@ public class MatchTriggerRequestDTO {
 
     public void setStartupId(Long startupId) {
         this.startupId = startupId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public Boolean getScrapeLiveWeb() {

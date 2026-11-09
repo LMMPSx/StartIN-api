@@ -98,7 +98,24 @@ public class OpportunityService {
             }
         }
 
-        return list.stream().map(OpportunityDTO::fromEntity).toList();
+        return list.stream()
+                .map(OpportunityDTO::fromEntity)
+                .sorted((a, b) -> {
+                    boolean aPro = Boolean.TRUE.equals(a.getProMember());
+                    boolean bPro = Boolean.TRUE.equals(b.getProMember());
+                    if (aPro != bPro) {
+                        return aPro ? -1 : 1;
+                    }
+                    int aMatch = a.getMatch() != null ? a.getMatch() : 0;
+                    int bMatch = b.getMatch() != null ? b.getMatch() : 0;
+                    if (aMatch != bMatch) {
+                        return Integer.compare(bMatch, aMatch);
+                    }
+                    long aId = a.getId() != null ? a.getId() : 0L;
+                    long bId = b.getId() != null ? b.getId() : 0L;
+                    return Long.compare(bId, aId);
+                })
+                .toList();
     }
 
     public Optional<OpportunityDTO> getById(Long id) {
@@ -123,10 +140,34 @@ public class OpportunityService {
         opp.setMatchScore(90);
 
         if (dto.getCompanyId() != null) {
-            companyRepository.findById(dto.getCompanyId()).ifPresent(opp::setCompany);
+            java.time.YearMonth currentMonth = java.time.YearMonth.now();
+            long monthlyCount = opportunityRepository.findByCompanyIdOrderByIdDesc(dto.getCompanyId()).stream()
+                    .filter(o -> o.getCreatedAt() == null || java.time.YearMonth.from(o.getCreatedAt()).equals(currentMonth))
+                    .count();
+            if (monthlyCount >= 10) {
+                throw new IllegalStateException("Limite mensal atingido: sua conta pode lançar até 10 oportunidades por mês.");
+            }
+            companyRepository.findById(dto.getCompanyId()).ifPresent(c -> {
+                opp.setCompany(c);
+                if (c.getUser() != null && "PRO".equalsIgnoreCase(c.getUser().getPlan())) {
+                    opp.setProMember(true);
+                }
+            });
         }
         if (dto.getStartupId() != null) {
-            startupProfileRepository.findById(dto.getStartupId()).ifPresent(opp::setStartup);
+            java.time.YearMonth currentMonth = java.time.YearMonth.now();
+            long monthlyCount = opportunityRepository.findByStartupIdOrderByIdDesc(dto.getStartupId()).stream()
+                    .filter(o -> o.getCreatedAt() == null || java.time.YearMonth.from(o.getCreatedAt()).equals(currentMonth))
+                    .count();
+            if (monthlyCount >= 10) {
+                throw new IllegalStateException("Limite mensal atingido: sua startup pode lançar até 10 oportunidades por mês.");
+            }
+            startupProfileRepository.findById(dto.getStartupId()).ifPresent(st -> {
+                opp.setStartup(st);
+                if (st.getUser() != null && "PRO".equalsIgnoreCase(st.getUser().getPlan())) {
+                    opp.setProMember(true);
+                }
+            });
         }
         if (dto.getTargetCategory() != null) {
             opp.setTargetCategory(dto.getTargetCategory());
@@ -260,6 +301,15 @@ public class OpportunityService {
         }
 
         return OpportunityDTO.fromEntity(saved);
+    }
+
+    @Transactional
+    public boolean deleteOpportunity(Long id) {
+        if (!opportunityRepository.existsById(id)) {
+            return false;
+        }
+        opportunityRepository.deleteById(id);
+        return true;
     }
 
     private String formatTypeLabel(OpportunityType type) {
