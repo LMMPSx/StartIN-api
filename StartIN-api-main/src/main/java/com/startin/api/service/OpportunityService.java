@@ -24,6 +24,7 @@ public class OpportunityService {
     private final CompanyRepository companyRepository;
     private final StartupProfileRepository startupProfileRepository;
     private final NotificationRepository notificationRepository;
+    private volatile boolean portalOpportunitiesSynced = false;
 
     public OpportunityService(
             OpportunityRepository opportunityRepository,
@@ -44,7 +45,11 @@ public class OpportunityService {
         return listOpportunities(type, query, companyId, null);
     }
 
+    @Transactional
     public List<OpportunityDTO> listOpportunities(String type, String query, Long companyId, Long startupId) {
+        if (startupId == null && companyId == null) {
+            ensurePortalOpportunitiesSynced();
+        }
         List<Opportunity> list;
         boolean hasQuery = query != null && !query.isBlank();
         boolean hasType = type != null && !type.isBlank() && !"Todos".equalsIgnoreCase(type);
@@ -319,6 +324,164 @@ public class OpportunityService {
         }
         opportunityRepository.deleteById(id);
         return true;
+    }
+
+    @Transactional
+    public void ensurePortalOpportunitiesSynced() {
+        if (portalOpportunitiesSynced) {
+            return;
+        }
+        List<Opportunity> existing = opportunityRepository.findAll();
+        java.util.Map<String, Opportunity> existingByTitle = new java.util.HashMap<>();
+        for (Opportunity o : existing) {
+            if (o.getTitle() != null) {
+                existingByTitle.put(o.getTitle().trim().toLowerCase(), o);
+            }
+        }
+
+        record PortalSeed(String title, OpportunityType type, String description, String meta, String tags, String url) {}
+        List<PortalSeed> seeds = List.of(
+                new PortalSeed(
+                        "Seleção Pública MCTI/Finep/FNDCT de Subvenção Econômica: Finep COOPERAMAIS Brasil Startups",
+                        OpportunityType.EDITAL,
+                        "Edital aberto mapeado no Capitaai com R$ 20,0 mi em subvenção econômica (Finep/MCTI) para startups e empresas de base tecnológica desenvolverem soluções inovadoras B2B e SaaS.",
+                        "Fluxo Contínuo · Recursos: R$ 20,0 mi · Brasil",
+                        "Capitaai • FINEP • Subvenção • Startups • Tecnologia",
+                        "https://www.finep.gov.br/e/chamada-publica/222684/1060720"
+                ),
+                new PortalSeed(
+                        "Edital FAPERJ Nº 26/2026 - Programa Bolsa de Inovação Tecnológica para Startups",
+                        OpportunityType.EDITAL,
+                        "Fomento mapeado pelo Capitaai para startups e empresas de tecnologia acelerarem projetos de pesquisa aplicada, inteligência artificial e transformação digital.",
+                        "Prazo: 27/11/2026 · Rio de Janeiro, RJ · Brasil",
+                        "Capitaai • FAPERJ • Inovação Tecnológica • Startups",
+                        "https://www.faperj.br/rp/downloads/Edital_FAPPERJ_N%C2%BA_26_2026_%E2%80%93_Bolsa_de_Inova%C3%A7%C3%A3o_Tecnol%C3%B3gica_(INT).pdf"
+                ),
+                new PortalSeed(
+                        "Chamada FAPEMIG SEDE 018/2026 - HUBMG GOV Inovação Aberta",
+                        OpportunityType.EDITAL,
+                        "Chamada pública com R$ 2,0 mi mapeada via Capitaai para contratação e fomento de soluções inovadoras de startups e empresas voltadas à eficiência operacional e GovTech.",
+                        "Prazo: 09/12/2026 · Recursos: R$ 2,0 mi · Minas Gerais, MG · Brasil",
+                        "Capitaai • FAPEMIG • GovTech • Inovação Aberta • B2B",
+                        "https://api.site.fapemig.br/wp-content/uploads/2026-10-09__195__12819__sei_150716523_edital_fapemig_sede___018_2026___hubmg_gov__Am0Er84Q.pdf"
+                ),
+                new PortalSeed(
+                        "Edital de Chamamento N° 7/2026 - Seleção de Projetos de Inovação em Medicamentos e Saúde",
+                        OpportunityType.EDITAL,
+                        "Edital aberto mapeado via Capitaai voltado a startups, empresas e ICTs com soluções de inovação em saúde, biotecnologia, fármacos e dispositivos médicos.",
+                        "Prazo: 23/11/2026 · Brasil",
+                        "Capitaai • Saúde & Healthtech • Biotech • Inovação",
+                        "https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirResenhaAnoData&cod_modulo=630&cod_menu=9376"
+                ),
+                new PortalSeed(
+                        "Edital Nº 06/2026 – Programa Nacional de Apoio à Geração de Empreendimentos Inovadores (Centelha 3)",
+                        OpportunityType.EDITAL,
+                        "Recursos de subvenção econômica mapeados no Capitaai para impulsionar startups em fase de validação e tração com produtos tecnológicos escaláveis.",
+                        "Fluxo Contínuo · Brasil",
+                        "Capitaai • Programa Centelha • Subvenção • Startups",
+                        "https://www.fapeal.br/wp-content/uploads/2026/10/V.03.-Edital-FAPEAL-no-06.2026-Centelha-3-AL-2a-Retificacao_resulatdo-Fase-1-em-13.11.2026.pdf"
+                ),
+                new PortalSeed(
+                        "Finep Mais Inovação Brasil – Rodada 2 – Tecnologias Digitais, IA e Semicondutores",
+                        OpportunityType.EDITAL,
+                        "Edital aberto na plataforma Capitaai (Finep) com R$ 100,0 mi para empresas e startups desenvolverem tecnologias de IA, sistemas embarcados, IoT e software avançado.",
+                        "Prazo: 25/11/2026 · Recursos: R$ 100,0 mi · Brasil",
+                        "Capitaai • FINEP • IA & Dados • Hardware & IoT",
+                        "http://www.finep.gov.br/chamadas-publicas/chamadapublica/780"
+                ),
+                new PortalSeed(
+                        "Edital Inova Startups 6ª Edição 2026 (Regulamento Oficial)",
+                        OpportunityType.EDITAL,
+                        "Programa de aceleração, capacitação e investimento financeiro para startups de base tecnológica com soluções B2B e IA.",
+                        "Inscrições abertas até 30/11/2026 · Brasil · Remoto",
+                        "InovaStartups • Aceleração • Investimento • B2B",
+                        "https://inovastartups.com.br/edital-inova-6a-edicao.pdf"
+                ),
+                new PortalSeed(
+                        "Chamada PIPE Jornada Tecnológica 2026 - Fase 1 (FAPESP)",
+                        OpportunityType.EDITAL,
+                        "Financiamento não reembolsável da FAPESP para validação de viabilidade técnico-científica de startups inovadoras.",
+                        "Inscrições abertas em fluxo contínuo · São Paulo · Brasil",
+                        "FAPESP • PIPE • Fase 1 • Subvenção",
+                        "https://fapesp.br/pipe/normas/"
+                ),
+                new PortalSeed(
+                        "REC'n'Play 2026 — Festival de Tecnologia, Inovação e Negócios (Porto Digital)",
+                        OpportunityType.EVENTO,
+                        "Maior festival de inovação e tecnologia do Nordeste, conectando startups a corporações, pitches e rodadas de negócios no ecossistema Porto Digital.",
+                        "15 a 18 de Outubro de 2026 · Recife/PE · Presencial & Híbrido",
+                        "Porto Digital • REC'n'Play • Startups • Conexão B2B • Inovação",
+                        "https://recnplay.pe/recnplay-estreia-programacao-de-cinema-de-rua-com-mais-de-30-curtas-pernambucanos-e-o-agente-secreto/"
+                ),
+                new PortalSeed(
+                        "Startup Summit 2026 — Sebrae Startups & ACATE",
+                        OpportunityType.EVENTO,
+                        "Encontro nacional de startups, fundos de Venture Capital e ecossistema corporativo com foco em escala, negócios e conexões de impacto.",
+                        "26 a 28 de Agosto de 2026 · Florianópolis/SC · Híbrido",
+                        "Sebrae • ACATE • Investimentos • Rodada de Negócios • B2B",
+                        "https://www.startupsummit.com.br/ingressos"
+                ),
+                new PortalSeed(
+                        "Gramado Summit 2026 — Feira de Startups, Inovação e Venture Capital",
+                        OpportunityType.EVENTO,
+                        "Um dos maiores eventos de brainstorming e conexão da América Latina, reunindo startups em validação e tração, investidores anjo, fundos de VC e executivos corporativos.",
+                        "Inscrições abertas · Gramado/RS · Presencial",
+                        "Gramado Summit • Venture Capital • Batalha de Startups • B2B",
+                        "https://gramadosummit.com/lp-startup"
+                ),
+                new PortalSeed(
+                        "Web Summit Rio 2026 — Programa Alpha & Beta para Startups",
+                        OpportunityType.EVENTO,
+                        "Conferência global de tecnologia e inovação no Rio de Janeiro conectando startups brasileiras e globais a fundos internacionais, grandes empresas e imprensa especializada.",
+                        "Inscrições abertas · Rio de Janeiro/RJ · Presencial",
+                        "Web Summit Rio • Global • Investidores • IA & SaaS • Startups",
+                        "https://rio.websummit.com/pt-br/startups/pitch/"
+                ),
+                new PortalSeed(
+                        "Ciclo de Inovação Aberta & Conexão Corporativa Porto Digital 2026",
+                        OpportunityType.EVENTO,
+                        "Encontros técnicos, desafios de inovação aberta, mentorias e rodadas de negócios para startups residentes e conectadas ao ecossistema do Porto Digital.",
+                        "Agenda Contínua 2026 · Recife/PE · Presencial & Online",
+                        "Porto Digital • Recife • Inovação Aberta • Startups • B2B",
+                        "https://portodigital.org/noticia/recnplay-capitulo-saude-conecta-os-ecossistemas-de-saude-e-tecnologia-do-recife-confira-a-programacao/"
+                )
+        );
+
+        for (PortalSeed seed : seeds) {
+            String key = seed.title().trim().toLowerCase();
+            Opportunity existingOpp = existingByTitle.get(key);
+            if (existingOpp == null) {
+                Opportunity opp = new Opportunity();
+                opp.setTitle(seed.title());
+                opp.setType(seed.type());
+                opp.setDescription(seed.description());
+                opp.setShortDescription(seed.description().length() > 110 ? seed.description().substring(0, 110) + "..." : seed.description());
+                opp.setMetaInfo(seed.meta());
+                opp.setTags(seed.tags());
+                opp.setExternalUrl(seed.url());
+                opp.setStatus(OpportunityStatus.PUBLICADA);
+                opp.setMatchScore(90);
+                opp.setColor(resolveColor(seed.type()));
+                opp = opportunityRepository.save(opp);
+                opp.setCode("web-" + opp.getId());
+                opportunityRepository.save(opp);
+                existingByTitle.put(key, opp);
+            } else {
+                String currentUrl = existingOpp.getExternalUrl() != null ? existingOpp.getExternalUrl().trim().toLowerCase() : "";
+                boolean isBareHomeOrIntermediate = currentUrl.isEmpty()
+                        || currentUrl.equals("https://recnplay.pe/") || currentUrl.equals("https://recnplay.pe")
+                        || currentUrl.equals("https://www.startupsummit.com.br/") || currentUrl.equals("https://www.startupsummit.com.br")
+                        || currentUrl.equals("https://gramadosummit.com/") || currentUrl.equals("https://gramadosummit.com")
+                        || currentUrl.equals("https://portodigital.org/") || currentUrl.equals("https://portodigital.org")
+                        || currentUrl.equals("https://rio.websummit.com/") || currentUrl.equals("https://websummit.com/rio/")
+                        || (currentUrl.contains("capitaai.com.br/captacao/") && (seed.url().toLowerCase().contains(".pdf") || !seed.url().contains("capitaai.com.br/captacao/")));
+                if (isBareHomeOrIntermediate) {
+                    existingOpp.setExternalUrl(seed.url());
+                    opportunityRepository.save(existingOpp);
+                }
+            }
+        }
+        portalOpportunitiesSynced = true;
     }
 
     private String formatTypeLabel(OpportunityType type) {

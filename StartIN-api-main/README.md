@@ -56,13 +56,14 @@ StartIN-api-main/
    ```sql
    CREATE DATABASE IF NOT EXISTS startin_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
-3. As credenciais padrao em `src/main/resources/application.properties` sao:
+3. As credenciais vem de variaveis de ambiente (`MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`). Localmente, crie `local.properties` na raiz deste modulo (ignorado pelo Git):
    ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/startin_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-   spring.datasource.username=root
-   spring.datasource.password=Vinicius145060@
-   spring.jpa.hibernate.ddl-auto=update
+   MYSQLUSER=root
+   MYSQLPASSWORD=sua_senha_local
    ```
+   Sem variaveis definidas, o backend usa `localhost:3306/startin_db` e `ddl-auto=update`.
+
+4. Deploy no Railway: `Dockerfile` + `railway.json` (healthcheck em `/api/health`). Veja o passo a passo em [../DEPLOY.md](../DEPLOY.md).
 
 ---
 

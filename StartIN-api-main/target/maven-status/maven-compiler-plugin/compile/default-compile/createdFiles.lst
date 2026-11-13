@@ -22,6 +22,7 @@ com\startin\api\model\ServiceConnection.class
 com\startin\api\repository\ProviderSavedStartupRepository.class
 com\startin\api\dto\provider\ServiceProviderDTO.class
 com\startin\api\model\User.class
+com\startin\api\service\OpportunityService$1PortalSeed.class
 com\startin\api\service\NotificationService.class
 com\startin\api\config\OpenApiConfig.class
 com\startin\api\dto\auth\UserDTO.class
@@ -55,6 +56,7 @@ com\startin\api\repository\UserRepository.class
 com\startin\api\service\MatchService$1.class
 com\startin\api\controller\StartupProfileController.class
 com\startin\api\model\ProviderSavedStartup.class
+com\startin\api\controller\HealthController.class
 com\startin\api\dto\auth\PasswordResetRequestDTO.class
 com\startin\api\dto\opportunity\OpportunityDTO.class
 com\startin\api\dto\startup\MatchingPreferencesDTO.class

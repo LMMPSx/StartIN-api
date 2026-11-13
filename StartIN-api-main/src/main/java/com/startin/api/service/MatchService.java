@@ -37,6 +37,7 @@ public class MatchService {
     private final CompanyRepository companyRepository;
     private final NotificationRepository notificationRepository;
     private final AiIntegrationService aiIntegrationService;
+    private final OpportunityService opportunityService;
 
     public MatchService(
             MatchResultRepository matchResultRepository,
@@ -44,13 +45,15 @@ public class MatchService {
             OpportunityRepository opportunityRepository,
             CompanyRepository companyRepository,
             NotificationRepository notificationRepository,
-            AiIntegrationService aiIntegrationService) {
+            AiIntegrationService aiIntegrationService,
+            OpportunityService opportunityService) {
         this.matchResultRepository = matchResultRepository;
         this.startupProfileRepository = startupProfileRepository;
         this.opportunityRepository = opportunityRepository;
         this.companyRepository = companyRepository;
         this.notificationRepository = notificationRepository;
         this.aiIntegrationService = aiIntegrationService;
+        this.opportunityService = opportunityService;
     }
 
     /**
@@ -117,6 +120,25 @@ public class MatchService {
                     newOpp = opportunityRepository.save(newOpp);
                     existingOpps.add(newOpp);
                     savedOppsCount++;
+                } else {
+                    String candidateUrl = scraped.getExternalUrl() != null && !scraped.getExternalUrl().isBlank()
+                            ? scraped.getExternalUrl().trim()
+                            : (scraped.getUrl() != null ? scraped.getUrl().trim() : "");
+                    if (!candidateUrl.isBlank() && !candidateUrl.equals(found.getExternalUrl())) {
+                        String curLow = found.getExternalUrl() != null ? found.getExternalUrl().trim().toLowerCase() : "";
+                        String candLow = candidateUrl.toLowerCase();
+                        boolean shouldUpgradeUrl = curLow.isBlank()
+                                || curLow.endsWith("recnplay.pe/") || curLow.endsWith("recnplay.pe")
+                                || curLow.endsWith("startupsummit.com.br/") || curLow.endsWith("startupsummit.com.br")
+                                || curLow.endsWith("gramadosummit.com/") || curLow.endsWith("gramadosummit.com")
+                                || curLow.endsWith("portodigital.org/") || curLow.endsWith("portodigital.org")
+                                || curLow.endsWith("websummit.com/rio/") || curLow.endsWith("rio.websummit.com/")
+                                || (curLow.contains("capitaai.com.br/captacao/") && (candLow.contains(".pdf") || !candLow.contains("capitaai.com.br/captacao/")));
+                        if (shouldUpgradeUrl) {
+                            found.setExternalUrl(candidateUrl);
+                            opportunityRepository.save(found);
+                        }
+                    }
                 }
             }
         }
@@ -189,24 +211,45 @@ public class MatchService {
             return List.of();
         }
 
+        opportunityService.ensurePortalOpportunitiesSynced();
+
         List<MatchResult> existing = matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(profile.getId());
         List<Opportunity> allOpps = opportunityRepository.findAll();
-        boolean hasEdital = allOpps.stream().anyMatch(o -> o.getType() == OpportunityType.EDITAL);
-        boolean hasEvento = allOpps.stream().anyMatch(o -> o.getType() == OpportunityType.EVENTO);
-        boolean hasEditaisAndEventos = hasEdital && hasEvento;
 
-        long compatibleInDb = allOpps.stream()
-                .filter(o -> isOpportunityCompatibleWithStage(o, profile.getCurrentStage()))
-                .count();
         long compatibleExisting = existing.stream()
                 .filter(m -> isOpportunityCompatibleWithStage(m.getOpportunity(), profile.getCurrentStage()))
                 .count();
         boolean hasLegacyUnauditedRows = existing.stream()
                 .anyMatch(m -> m.getReasonProfile() == null || !m.getReasonProfile().contains("/40"));
 
-        if (!hasEditaisAndEventos || existing.isEmpty() || compatibleExisting == 0 || compatibleExisting < compatibleInDb || hasLegacyUnauditedRows) {
-            boolean needLiveScrape = !hasEditaisAndEventos || existing.isEmpty() || compatibleExisting == 0;
-            return recalculateMatches(profile.getId(), needLiveScrape);
+        // Recalcula utilizando o JSON ativo da IA apenas quando o perfil ainda não possui matches compatíveis
+        // ou possui registros legados não auditados (nunca re-raspa a web a cada acesso ao Para Você)
+        if (existing.isEmpty() || compatibleExisting == 0 || hasLegacyUnauditedRows) {
+            return recalculateMatches(profile.getId(), existing.isEmpty());
+        }
+
+        // Calcula incrementalmente apenas oportunidades recém-publicadas que ainda não possuem MatchResult salvo
+        Set<Long> matchedOppIds = new HashSet<>();
+        for (MatchResult mr : existing) {
+            if (mr.getOpportunity() != null && mr.getOpportunity().getId() != null) {
+                matchedOppIds.add(mr.getOpportunity().getId());
+            }
+        }
+        List<Opportunity> missingCompatibleOpps = allOpps.stream()
+                .filter(o -> o.getId() != null && !matchedOppIds.contains(o.getId()))
+                .filter(o -> isOpportunityCompatibleWithStage(o, profile.getCurrentStage()))
+                .toList();
+
+        if (!missingCompatibleOpps.isEmpty()) {
+            try {
+                AiMatchResponseDTO missingResp = aiIntegrationService.calculateMatches(profile, missingCompatibleOpps, false);
+                if (missingResp != null && missingResp.getMatches() != null && !missingResp.getMatches().isEmpty()) {
+                    persistMatchItemsForProfile(profile, missingResp.getMatches(), missingCompatibleOpps);
+                    existing = matchResultRepository.findByStartupProfileIdOrderByMatchScoreDesc(profile.getId());
+                }
+            } catch (Exception e) {
+                log.warn("Aviso ao calcular match incremental de novas oportunidades para startup {}: {}", profile.getId(), e.getMessage());
+            }
         }
 
         return existing.stream()
@@ -226,6 +269,7 @@ public class MatchService {
 
     @Transactional
     public List<MatchResultDTO> recalculateMatches(Long startupId, Long userId, boolean scrapeLiveWeb) {
+        opportunityService.ensurePortalOpportunitiesSynced();
         StartupProfile profile = resolveStartupProfile(startupId, userId);
         if (profile == null) {
             throw new IllegalArgumentException("Nenhum perfil de startup cadastrado para calcular matches.");
