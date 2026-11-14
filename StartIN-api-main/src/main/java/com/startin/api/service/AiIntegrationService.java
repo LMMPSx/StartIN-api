@@ -35,7 +35,15 @@ public class AiIntegrationService {
             RestTemplateBuilder builder,
             @Value("${startin.ai.base-url:http://localhost:8000}") String aiBaseUrl,
             @Value("${startin.ai.timeout-seconds:120}") int timeoutSeconds) {
-        this.aiBaseUrl = aiBaseUrl;
+        String normalizedAiUrl = (aiBaseUrl == null || aiBaseUrl.isBlank())
+                ? "https://startin-ai.vercel.app"
+                : aiBaseUrl.trim().replaceAll("/+$", "");
+        if (!normalizedAiUrl.startsWith("http://") && !normalizedAiUrl.startsWith("https://")) {
+            normalizedAiUrl = (normalizedAiUrl.startsWith("localhost") || normalizedAiUrl.startsWith("127.0.0.1"))
+                    ? "http://" + normalizedAiUrl
+                    : "https://" + normalizedAiUrl;
+        }
+        this.aiBaseUrl = normalizedAiUrl;
         this.restTemplate = builder
                 .setConnectTimeout(Duration.ofSeconds(timeoutSeconds))
                 .setReadTimeout(Duration.ofSeconds(timeoutSeconds))
